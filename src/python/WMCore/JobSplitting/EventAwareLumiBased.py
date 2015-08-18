@@ -38,7 +38,9 @@ class EventAwareLumiBased(JobFactory):
         Split files into a number of lumis per job
         Allow a flag to determine if we split files between jobs
         """
-
+        logging.info("ALAN printing kwargs")
+        for k, v in kwargs.items():
+            logging.info("%s: %s" % (k, v))
         avgEventsPerJob = int(kwargs.get('events_per_job', 5000))
         eventLimit      = int(kwargs.get('max_events_per_lumi', 20000))
         totalEvents     = int(kwargs.get('total_events', 0))
@@ -57,6 +59,16 @@ class EventAwareLumiBased(JobFactory):
         deterministicPileup = kwargs.get('deterministicPileup', False)
         eventsPerLumiInDataset = 0
 
+        logging.info("ALAN avgEventsPerJob %s" % avgEventsPerJob)
+        logging.info("ALAN totalEvents %s" % totalEvents)
+        logging.info("ALAN splitOnFile %s" % splitOnFile)
+        logging.info("ALAN ignoreACDC %s" % ignoreACDC)
+        logging.info("ALAN collectionName %s" % collectionName)
+        logging.info("ALAN runs %s" % runs)
+        logging.info("ALAN lumis %s" % lumis)
+        logging.info("ALAN timePerEvent %s" % timePerEvent)
+        logging.info("ALAN sizePerEvent %s" % sizePerEvent)
+
         if deterministicPileup and self.package == 'WMCore.WMBS':
             getJobNumber = self.daoFactory(classname = "Jobs.GetNumberOfJobsPerWorkflow")
             jobNumber = getJobNumber.execute(workflow = self.subscription.getWorkflow().id)
@@ -65,6 +77,7 @@ class EventAwareLumiBased(JobFactory):
         goodRunList = {}
         if runs and lumis:
             goodRunList = buildLumiMask(runs, lumis)
+        logging.info("ALAN goodRunList %s" % goodRunList)
 
         # If we have runLumi info, we need to load it from couch
         if collectionName:
@@ -80,6 +93,7 @@ class EventAwareLumiBased(JobFactory):
                 logging.info('Creating jobs for ACDC fileset %s' % filesetName)
                 dcs = DataCollectionService(couchURL, couchDB)
                 goodRunList = dcs.getLumiWhitelist(collectionName, filesetName, owner, group)
+                filesTotalLumis = dcs.getProcessingACDCInfo(collectionName, filesetName, owner, group)
             except Exception as ex:
                 msg =  "Exception while trying to load goodRunList\n"
                 if ignoreACDC:
@@ -101,6 +115,7 @@ class EventAwareLumiBased(JobFactory):
         # First we need to load the data
         if self.package == 'WMCore.WMBS':
             loadRunLumi = self.daoFactory(classname = "Files.GetBulkRunLumi")
+            logging.info("ALAN loadRunLumi %s" % loadRunLumi)
 
         for key in lDict.keys():
             newlist = []
@@ -109,19 +124,29 @@ class EventAwareLumiBased(JobFactory):
                 fileLumis = loadRunLumi.execute(files = lDict[key])
                 for f in lDict[key]:
                     lumiDict = fileLumis.get(f['id'], {})
+                    logging.info("ALAN lumiDict %s" % lumiDict)
                     for run in lumiDict.keys():
                         f.addRun(run = Run(run, *lumiDict[run]))
 
             for f in lDict[key]:
+                logging.info("ALAN f %s" % f)
                 if len(f['runs']) == 0:
                     continue
                 f['runs'] = sorted(f['runs'])
                 f['lumiCount'] = 0
+                logging.info("ALAN f['runs'] %s" % f['runs'])
                 for run in f['runs']:
                     run.lumis.sort()
                     f['lumiCount'] += len(run.lumis)
                 f['lowestRun'] = f['runs'][0]
 
+                # ACDC workflows have incorrect value, so we need to fetch it from acdcserver
+                # FIXME checking for None just to be backward compatible. Remove it later!
+                if collectionName and filesTotalLumis[f['lfn']]:
+                    f['lumiCount'] = filesTotalLumis[f['lfn']]
+
+                logging.info("ALAN f['lumiCount'] %s" % f['lumiCount'])
+                logging.info("ALAN f['events'] %s" % f['events'])
                 #Do average event per lumi calculation
                 if f['lumiCount']:
                     f['avgEvtsPerLumi'] = round(float(f['events'])/f['lumiCount'])
@@ -131,6 +156,7 @@ class EventAwareLumiBased(JobFactory):
                 else:
                     #No lumis in the file, ignore it
                     continue
+                logging.info("ALAN f['avgEvtsPerLumi'] %s" % f['avgEvtsPerLumi'])
                 newlist.append(f)
 
 
@@ -178,6 +204,7 @@ class EventAwareLumiBased(JobFactory):
                     else:
                         #Zero event file, then the ratio goes to infinity. Computers don't like that
                         lumisPerJob = f['lumiCount']
+                    logging.info("ALAN lumisPerJob %s" % lumisPerJob)
                 else:
                     #Analyze how many events does this job already has
                     #Check how many we want as target, include as many lumi sections as possible
@@ -309,6 +336,7 @@ class EventAwareLumiBased(JobFactory):
                         firstLumi = None
                         lastLumi = None
 
+                    logging.info("\nALAN last self.currentJob %s" % self.currentJob)
                     if stopTask:
                         break
 

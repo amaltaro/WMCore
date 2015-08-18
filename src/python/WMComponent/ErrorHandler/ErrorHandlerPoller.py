@@ -184,11 +184,13 @@ class ErrorHandlerPoller(BaseWorkerThread):
 
         Do the ACDC creation and hope it works
         """
+        logging.info("ALAN handling acdc jobList %s" % jobList)
         idList = [x['id'] for x in jobList]
         logging.info("Starting to build ACDC with %i jobs" % len(idList))
         logging.info("This operation will take some time...")
         loadList = self.loadJobsFromListFull(idList)
         for job in loadList:
+            logging.info("ALAN getting mask for job %s" % job)
             job.getMask()
         self.dataCollection.failedJobs(loadList)
         return

@@ -7,9 +7,10 @@ Created by Dave Evans on 2010-03-19.
 Copyright (c) 2010 Fermilab. All rights reserved.
 """
 import time
+import logging
 
 from WMCore.ACDC.Fileset import Fileset
-from WMCore.Database.CouchUtils import connectToCouch, requireOwner, requireCollection, requireFilesetName
+from WMCore.Database.CouchUtils import connectToCouch, requireOwner, requireFilesetName
 
 import WMCore.Database.CMSCouch as CMSCouch
 
@@ -104,6 +105,9 @@ class CouchFileset(Fileset):
         reliable events information. If job was event based splitted,
         then we do not have reliable lumi information.
         """
+        logging.info("ALAN received files %s" % files)
+        logging.info("ALAN received mask %s" % mask)
+
         filteredFiles = []
         if mask:
             for f in files:
@@ -114,14 +118,20 @@ class CouchFileset(Fileset):
                 elif mask['FirstEvent']:
                     f['events'] -= mask['FirstEvent']
                     f['first_event'] = mask['FirstEvent']
+                # add total lumis in the file for proper timePerEvent estimation in ACDCs
+                f['totalLumis'] = 0
+                for r in f['runs']:
+                    f['totalLumis'] += r.__len__()
 
             maskLumis = mask.getRunAndLumis()
+            logging.info("ALAN CouchFileset got maskLumis %s" % maskLumis)
             if maskLumis != {}:
                 # Then we actually have to do something
                 for f in files:
                     newRuns = mask.filterRunLumisByMask(runs = f['runs'])
                     if newRuns != set([]):
                         f['runs'] = newRuns
+                        logging.info("ALAN file f dict %s" % f)
                         filteredFiles.append(f)
             else:
                 # Likely real data with EventBased splitting
@@ -131,6 +141,7 @@ class CouchFileset(Fileset):
 
         jsonFiles = {}
         [ jsonFiles.__setitem__(f['lfn'], f.__to_json__(None)) for f in filteredFiles]
+        logging.info("ALAN jsonFiles %s" % jsonFiles)
         filelist = self.makeFilelist(jsonFiles)
         return filelist
 

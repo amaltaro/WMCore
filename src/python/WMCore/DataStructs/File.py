@@ -8,7 +8,6 @@ Data object that contains details for a single file
 __all__ = []
 
 
-import datetime
 from WMCore.DataStructs.WMObject import WMObject
 from WMCore.DataStructs.Run import Run
 
@@ -28,6 +27,7 @@ class File(WMObject, dict):
         self.setdefault('merged', merged)
         self.setdefault('last_event', 0)
         self.setdefault('first_event', 0)
+        self.setdefault('totalLumis', None)
 
         if locations == None:
             self.setdefault("locations", set())
@@ -120,6 +120,7 @@ class File(WMObject, dict):
         """
         fileDict = {"last_event": self["last_event"],
                     "first_event": self["first_event"],
+                    "totalLumis": self["totalLumis"],
                     "lfn": self["lfn"],
                     "locations": list(self["locations"]),
                     "id": self.get("id", None),

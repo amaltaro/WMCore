@@ -187,6 +187,7 @@ class LumiBased(JobFactory):
                 logging.info('Creating jobs for ACDC fileset %s' % filesetName)
                 dcs = DataCollectionService(couchURL, couchDB)
                 goodRunList = dcs.getLumiWhitelist(collectionName, filesetName, owner, group)
+                filesTotalLumis = dcs.getProcessingACDCInfo(collectionName, filesetName, owner, group)
             except Exception as ex:
                 msg = "Exception while trying to load goodRunList\n"
                 if ignoreACDC:
@@ -230,6 +231,12 @@ class LumiBased(JobFactory):
                     run.lumis.sort()
                     f['lumiCount'] += len(run.lumis)
                 f['lowestRun'] = f['runs'][0]
+
+                # ACDC workflows have incorrect value, so we need to fetch it from acdcserver
+                # FIXME checking for None just to be backward compatible. Remove it later!
+                if collectionName and filesTotalLumis[f['lfn']]:
+                    f['lumiCount'] = filesTotalLumis[f['lfn']]
+
                 # Do average event per lumi calculation
                 if f['lumiCount']:
                     f['avgEvtsPerLumi'] = round(float(f['events']) / f['lumiCount'])

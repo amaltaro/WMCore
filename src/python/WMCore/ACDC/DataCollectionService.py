@@ -251,10 +251,10 @@ class DataCollectionService(CouchService):
         return chunkFiles
 
     @CouchUtils.connectToCouch
-    def getProductionACDCInfo(self, collectionID, taskName, user = "cmsdataops",
-                        group = "cmsdataops"):
+    def getProductionACDCInfo(self, collectionID, taskName,
+                              user = "cmsdataops", group = "cmsdataops"):
         """
-        _getFileInfo_
+        _getProductionACDCInfo_
 
         Query ACDC for all of the files in the given collection and task.
         Return an entry for each file with lumis and event info.
@@ -273,6 +273,30 @@ class DataCollectionService(CouchService):
                         "lumis" : value["runs"][0]["lumis"],
                         "events" : value["events"]}
             acdcInfo.append(fileInfo)
+        return acdcInfo
+
+    @CouchUtils.connectToCouch
+    def getProcessingACDCInfo(self, collectionID, taskName,
+                              user = "cmsdataops", group = "cmsdataops"):
+        """
+        _getProcessingACDCInfo_
+
+        Query ACDC for all of the files in the given collection and task.
+        Return a dict of file names and total lumis.
+        Format is:
+        {'/store/blah/blah.root' : 10500,
+         '/store/blah/blah2.root' : 21000,
+         ...}
+
+        At the moment, this is only used for a proper calculation of the
+        job estimation time.
+        """
+
+        files = self._getFilesetInfo(collectionID, taskName, user, group)
+
+        acdcInfo = {}
+        for value in files:
+            acdcInfo[value["lfn"]] = value.get("totalLumis", None)
         return acdcInfo
 
     @CouchUtils.connectToCouch
