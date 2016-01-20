@@ -5,6 +5,7 @@ WorkQueue SplitPolicyInterface
 """
 __all__ = []
 
+import logging
 from WMCore.WorkQueue.Policy.PolicyInterface import PolicyInterface
 from WMCore.WorkQueue.DataStructs.WorkQueueElement import WorkQueueElement
 from WMCore.WorkQueue.WorkQueueExceptions import WorkQueueWMSpecError, WorkQueueNoWorkError
@@ -26,6 +27,7 @@ class StartPolicyInterface(PolicyInterface):
         self.dbs_pool = {}
         self.data = {}
         self.lumi = None
+        self.mask = None
         self.couchdb = None
         self.rejectedWork = []  # List of inputs that were rejected
         self.pileupData = {}
@@ -129,9 +131,11 @@ class StartPolicyInterface(PolicyInterface):
         self.wmspec = wmspec
         # bring in spec specific settings
         self.args.update(self.wmspec.startPolicyParameters())
+        logging.info("ALAN self.args: %s", self.args)
         self.initialTask = task
         if data:
             self.data = data
+        logging.info("ALAN data: %s", data)
         self.mask = mask
         self.validate()
         try:

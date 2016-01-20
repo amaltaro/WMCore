@@ -19,7 +19,6 @@ class Block(StartPolicyInterface):
         StartPolicyInterface.__init__(self, **args)
         self.args.setdefault('SliceType', 'NumberOfFiles')
         self.args.setdefault('SliceSize', 1)
-        self.lumiType = "NumberOfLumis"
 
         # Initialize a list of sites where the data is
         self.sites = []
@@ -48,7 +47,7 @@ class Block(StartPolicyInterface):
             self.newQueueElement(Inputs = {block['block'] : self.data.get(block['block'], [])},
                                  ParentFlag = parentFlag,
                                  ParentData = parentList,
-                                 NumberOfLumis = int(block[self.lumiType]),
+                                 NumberOfLumis = int(block['NumberOfLumis']),
                                  NumberOfFiles = int(block['NumberOfFiles']),
                                  NumberOfEvents = int(block['NumberOfEvents']),
                                  Jobs = ceil(float(block[self.args['SliceType']]) /
@@ -128,7 +127,7 @@ class Block(StartPolicyInterface):
                 #ratio =  lumis which are ok in the block / total num lumis
                 ratioAccepted = 1. * accepted_lumis / float(block['NumberOfLumis'])
                 block['NumberOfEvents'] = float(block['NumberOfEvents']) * ratioAccepted
-                block[self.lumiType] = accepted_lumis
+                block['NumberOfLumis'] = accepted_lumis
             # check run restrictions
             elif runWhiteList or runBlackList:
                 # listRunLumis returns a dictionary with the lumi sections per run
@@ -177,7 +176,7 @@ class Block(StartPolicyInterface):
                                 acceptedEventCount += float(acceptedFileLumiCount) * fileEntry['NumberOfEvents']/len(fileEntry['LumiList'])
                             else:
                                 acceptedEventCount += fileEntry['NumberOfEvents']
-                    block[self.lumiType] = acceptedLumiCount
+                    block['NumberOfLumis'] = acceptedLumiCount
                     block['NumberOfFiles'] = acceptedFileCount
                     block['NumberOfEvents'] = acceptedEventCount
             # save locations

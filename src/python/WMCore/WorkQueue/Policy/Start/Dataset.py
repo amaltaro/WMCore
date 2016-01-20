@@ -18,7 +18,6 @@ class Dataset(StartPolicyInterface):
         StartPolicyInterface.__init__(self, **args)
         self.args.setdefault('SliceType', 'NumberOfFiles')
         self.args.setdefault('SliceSize', 1)
-        self.lumiType = "NumberOfLumis"
         self.siteDB = SiteDB()
 
     def split(self):
@@ -42,7 +41,7 @@ class Dataset(StartPolicyInterface):
 
         for block in blocks:
             work += float(block[self.args['SliceType']])
-            numLumis +=  int(block[self.lumiType])
+            numLumis +=  int(block['NumberOfLumis'])
             numFiles += int(block['NumberOfFiles'])
             numEvents += int(block['NumberOfEvents'])
 
@@ -154,8 +153,7 @@ class Dataset(StartPolicyInterface):
                 # make a guess for new event/file numbers from ratio
                 # of accepted lumi sections (otherwise have to pull file info)
                 
-                fullLumiCount = block["NumberOfLumis"]
-                block[self.lumiType] = acceptedLumiCount
+                block['NumberOfLumis'] = acceptedLumiCount
                 block['NumberOfFiles'] = acceptedFileCount
                 block['NumberOfEvents'] = acceptedEventCount
 

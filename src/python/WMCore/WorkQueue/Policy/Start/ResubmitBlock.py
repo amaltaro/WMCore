@@ -20,8 +20,10 @@ ACDC unsupported:
 __all__ = []
 
 
-from WMCore.WorkQueue.Policy.Start.StartPolicyInterface import StartPolicyInterface
+import logging
 from math import ceil
+
+from WMCore.WorkQueue.Policy.Start.StartPolicyInterface import StartPolicyInterface
 from WMCore.Services.SiteDB.SiteDB import SiteDBJSON as SiteDB
 from WMCore.WorkQueue.WorkQueueExceptions import WorkQueueWMSpecError
 from WMCore.WorkQueue.WorkQueueUtils import makeLocationsList
@@ -35,7 +37,7 @@ class ResubmitBlock(StartPolicyInterface):
         self.args.setdefault('SliceType', 'NumberOfFiles')
         self.args.setdefault('SliceSize', 1)
         self.args.setdefault('SplittingAlgo', 'LumiBased')
-        self.lumiType = "NumberOfLumis"
+        logging.info("ALAN self.args %s", self.args)
 
         # Define how to handle the different splitting algorithms
         self.algoMapping = {'Harvest' : self.singleChunk,
@@ -46,6 +48,7 @@ class ResubmitBlock(StartPolicyInterface):
                             'EventBased' : self.singleChunk}
         self.unsupportedAlgos = ['WMBSMergeBySize', 'SiblingProcessingBased']
         self.defaultAlgo = self.fixedSizeChunk
+        logging.info("ALAN self.fixedSizeChunk %s", self.fixedSizeChunk)
         self.sites = []
         self.siteDB = SiteDB()
 
@@ -58,13 +61,11 @@ class ResubmitBlock(StartPolicyInterface):
         self.sites = makeLocationsList(siteWhitelist, siteBlacklist)
 
         for block in self.validBlocks(self.initialTask):
-            if self.initialTask.parentProcessingFlag():
-                parentFlag = True
-            else:
-                parentFlag = False
+            logging.info("ALAN block %s", block)
+            parentFlag = True if self.initialTask.parentProcessingFlag() else False
             self.newQueueElement(Inputs = {block['Name'] : block['Sites']},
                                  ParentFlag = parentFlag,
-                                 NumberOfLumis = block[self.lumiType],
+                                 NumberOfLumis = block['NumberOfLumis'],
                                  NumberOfFiles = block['NumberOfFiles'],
                                  NumberOfEvents = block['NumberOfEvents'],
                                  Jobs = ceil(float(block[self.args['SliceType']]) /
@@ -89,9 +90,9 @@ class ResubmitBlock(StartPolicyInterface):
         if self.data:
             acdcBlockSplit = ACDCBlock.splitBlockName(self.data.keys()[0])
         else:
-            # if self.data is not passed, assume the the data is input dataset
-            # from the spec
+            # if self.data is not passed, assume the data is input dataset from the spec
             acdcBlockSplit = False
+        logging.info("ALAN self.data %s and acdcBlockSplit %s", self.data, acdcBlockSplit)
 
         if acdcBlockSplit:
             dbsBlock = {}
@@ -117,9 +118,10 @@ class ResubmitBlock(StartPolicyInterface):
         else:
             if self.args['SplittingAlgo'] in self.unsupportedAlgos:
                 raise WorkQueueWMSpecError(self.wmspec, 'ACDC is not supported for %s' % self.args['SplittingAlgo'])
-            splittingFunc = self.defaultAlgo
-            if self.args['SplittingAlgo'] in self.algoMapping:
+            elif self.args['SplittingAlgo'] in self.algoMapping:
                 splittingFunc = self.algoMapping[self.args['SplittingAlgo']]
+            else:
+                splittingFunc = self.defaultAlgo
             validBlocks = splittingFunc(acdc, acdcInfo, task)
 
         return validBlocks
