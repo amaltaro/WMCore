@@ -106,7 +106,7 @@ class StatusPoller(BaseWorkerThread):
         # Now check for timeouts
         for job in runningJobs:
             globalState = job.get('globalState', 'Error')
-            statusTime = job.get('status_time', None)
+            statusTime = job.get('status_time', 0)
             timeout = self.timeouts.get(globalState, None)
             if statusTime == 0:
                 logging.error("Not killing job %i, the status time was zero", job['id'])

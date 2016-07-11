@@ -66,7 +66,8 @@ class BossAirAPI(WMConnectionBase):
         self.jobs = []
 
         self.pluginDir = config.BossAir.pluginDir
-        # This is the default state jobs are created in
+        # This is the default state jobs are created in BossAir
+        # JobStatusLite should update it to Idle in the next cycle
         self.newState = getattr(config.BossAir, 'newState', 'New')
 
         # Get any proxy info
@@ -100,7 +101,7 @@ class BossAirAPI(WMConnectionBase):
 
 
 
-    def loadPlugin(self, noSetup = False):
+    def loadPlugin(self, noSetup=False):
         """
         _loadPlugin_
 
@@ -163,8 +164,7 @@ class BossAirAPI(WMConnectionBase):
         for wmbsJob in wmbsJobs:
             runJob = RunJob()
             runJob.buildFromJob(job=wmbsJob)
-            if not runJob.get('status', None):
-                runJob['status'] = self.newState
+            runJob['status'] = self.newState
             jobsToCreate.append(runJob)
 
 
@@ -327,12 +327,14 @@ class BossAirAPI(WMConnectionBase):
 
         self.commitTransaction(existingTransaction)
 
-        if not len(loadedJobs) == len(wmbsJobs):
-            logging.error("Mismatch in WMBS load: Some requested jobs not found!")
+        if len(loadedJobs) != len(wmbsJobs):
             idList = [x['jobid'] for x in loadedJobs]
-            for job in wmbsJobs:
-                if not job['id'] in idList:
-                    logging.error("Could not retrieve job with WMBS ID %i from BossAir database", (job['id']))
+            wmbsIdList = [x['id'] for x in wmbsJobs]
+            loadFailedIds = list(set(wmbsIdList) - set(idList))
+            logging.error("Error retrieving jobs with WMBS IDs %s from BossAir database.", loadFailedIds)
+
+            # FIXME: AMR, I'm not really sure whether we should remove it from the original list
+            # wmbsJobs[:] = [x for x in wmbsJobs if x['id'] not in loadFailedIds]
 
         return loadedJobs
 
@@ -467,6 +469,7 @@ class BossAirAPI(WMConnectionBase):
 
         jobsToTrack = {}
 
+        logging.info("Fetching active jobs in the BossAir database.")
         runningJobs = self._listRunJobs(active=True)
 
         if runJobIDs:
@@ -482,20 +485,17 @@ class BossAirAPI(WMConnectionBase):
             # Then we have no running jobs
             return returnList
 
-        logging.info("About to start building running jobs")
-
         loadedJobs = self._buildRunningJobsFromRunJobs(runJobs=runningJobs)
-
         logging.info("About to look for %i loadedJobs.\n", len(loadedJobs))
 
         for runningJob in loadedJobs:
             plugin = runningJob['plugin']
-            if not plugin in jobsToTrack.keys():
+            if plugin not in jobsToTrack.keys():
                 jobsToTrack[plugin] = []
             jobsToTrack[plugin].append(runningJob)
 
         for plugin in jobsToTrack.keys():
-            if not plugin in self.plugins.keys():
+            if plugin not in self.plugins.keys():
                 msg = "Jobs tracking with non-existant plugin %s\n" % (plugin)
                 msg += "They were submitted but can't be tracked?\n"
                 msg += "That's too strange to continue\n"
@@ -509,7 +509,8 @@ class BossAirAPI(WMConnectionBase):
                 jobsToReturn.extend(localRunning)
                 jobsToChange.extend(localChanges)
                 jobsToComplete.extend(localCompletes)
-                logging.info("Running/changing/completing %i/%i/%i jobs in plugin %s.\n", len(localRunning), len(localChanges), len(localCompletes), plugin)
+                logging.info("Executing/changing/completing %i/%i/%i jobs in plugin %s.\n",
+                             len(localRunning), len(localChanges), len(localCompletes), plugin)
             except WMException:
                 raise
             except Exception as ex:
@@ -555,7 +556,7 @@ class BossAirAPI(WMConnectionBase):
         idsToComplete = []
 
         for job in jobs:
-            if not job['plugin'] in jobsToComplete.keys():
+            if job['plugin'] not in jobsToComplete.keys():
                 jobsToComplete[job['plugin']] = []
             jobsToComplete[job['plugin']].append(job)
             idsToComplete.append(job['id'])
@@ -566,7 +567,7 @@ class BossAirAPI(WMConnectionBase):
         except WMException:
             raise
         except Exception as ex:
-            msg = "Exception while completing jobs!\n"
+            msg = "Exception while completing jobs in the plugin!\n"
             msg += str(ex)
             logging.error(msg)
             logging.debug("JobsToComplete: %s", jobsToComplete)
@@ -645,12 +646,12 @@ class BossAirAPI(WMConnectionBase):
 
         for runningJob in loadedJobs:
             plugin = runningJob['plugin']
-            if not plugin in jobsToKill.keys():
+            if plugin not in jobsToKill.keys():
                 jobsToKill[plugin] = []
             jobsToKill[plugin].append(runningJob)
 
         for plugin in jobsToKill.keys():
-            if not plugin in self.plugins.keys():
+            if plugin not in self.plugins.keys():
                 msg = "Jobs tracking with non-existant plugin %s\n" % (plugin)
                 msg += "They were submitted but can't be tracked?\n"
                 msg += "That's too strange to continue\n"
@@ -699,8 +700,9 @@ class BossAirAPI(WMConnectionBase):
                     logging.error(msg)
                     logging.debug("Interrupted while killing following jobs: %s\n", jobsToKill[plugin])
                     raise BossAirException(msg)
-                finally:
-                    # Even if kill fails, complete the jobs
+                else:
+                    # Only complete jobs that were successfully removed by the plugin
+                    # Otherwise, try removing it in the next cycle again
                     self._complete(jobs=jobsToKill[plugin])
         return
 
@@ -825,8 +827,6 @@ class BossAirAPI(WMConnectionBase):
         finalJobs = []
         loadedJobs = self.loadByWMBS(wmbsJobs=wmbsJobs)
 
-        if len(wmbsJobs) != len(loadedJobs):
-            logging.error("Could not load all jobs in BossAir for WMBS input")
 
         for wmbsJob in wmbsJobs:
             for runJob in loadedJobs:
@@ -843,8 +843,6 @@ class BossAirAPI(WMConnectionBase):
             # It means that although we sent for it, we couldn't find it.
             # Possibly means that the job just isn't in there yet.
             # Make a note of it, then do nothing
-            logging.debug("Could not successfully load a runJob for wmbsJob %i:%i\n", wmbsJob['id'], wmbsJob['retry_count'])
-            logging.debug("WMBS Job: %s\n", wmbsJob)
-
+            logging.error("Could not successfully load a runJob for wmbsJob: %s", wmbsJob)
 
         return finalJobs
