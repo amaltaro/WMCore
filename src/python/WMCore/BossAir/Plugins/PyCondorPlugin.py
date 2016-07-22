@@ -209,7 +209,7 @@ class PyCondorPlugin(BasePlugin):
         self.sandbox = None
         self.scriptFile = None
         self.submitDir = None
-        self.removeTime = getattr(config.BossAir, 'removeTime', 300)
+        self.removeTime = getattr(config.BossAir, 'removeTime', 120)
         self.useGSite = getattr(config.BossAir, 'useGLIDEINSites', False)
         self.submitWMSMode = getattr(config.BossAir, 'submitWMSMode', False)
         self.errorThreshold = getattr(config.BossAir, 'submitErrorThreshold', 10)
@@ -582,19 +582,21 @@ class PyCondorPlugin(BasePlugin):
             # either failed to contact the schedd or failed to retrieve classAds
             return runningList, changeList, completeList
 
-        if len(jobInfo.keys()) == 0:
-            # succeeded contacting the schedd, but got no classAds back
-            noInfoFlag = True
+        rjJobIds = set([job['jobid'] for job in jobs])
+        condorJobIds = set(jobInfo.keys())
+        missingJobIds = rjJobIds - condorJobIds
 
-        # Now go over the jobs from WMBS and see what we have
+        if len(missingJobIds):
+            logging.info("Found %i jobs missing in condor. Checking the history.", len(missingJobIds))
+            missingJobInfo = self.getMissingClassAds(missingJobIds)
+            jobInfo.update(missingJobInfo)
+
+        # Now go over the jobs from BossAir and see what we have
         for job in jobs:
-            if job['jobid'] not in jobInfo.keys():
-                if noInfoFlag:
-                    self.procJobNoInfo(job, changeList, completeList)
-                else:
-                    self.procCondorLog(job, changeList, completeList, runningList)
-            else:
+            if job['jobid'] in jobInfo.keys():
                 self.procClassAd(job, jobInfo.get(job['jobid']), changeList, completeList, runningList)
+            else:
+                self.procJobNoInfo(job, changeList, completeList)
 
         return runningList, changeList, completeList
 
@@ -1032,7 +1034,7 @@ class PyCondorPlugin(BasePlugin):
             msg = "Query to condor schedd failed. Retrying again in the next cycle. "
             msg += str(ex)
             logging.error(msg)
-            return None, None
+            return None
         else:
             for slicedAds in grouper(itobj, 1000):
                 for jobAd in slicedAds:
@@ -1042,7 +1044,7 @@ class PyCondorPlugin(BasePlugin):
                         and jobAd["JobStatus"] == 2:
                         msg = "Found a job in Running status either without JobStartDate or MATCH_EXP_JOBGLIDEIN_CMSSite ad. "
                         msg += "Retrying in the next cycle. Its classAds retrieved are: %s." % str(jobAd)
-                        logging.war(msg)
+                        logging.warn(msg)
                         continue
 
                     tmpDict = {}
@@ -1057,6 +1059,52 @@ class PyCondorPlugin(BasePlugin):
                     jobInfo[tmpDict["WMAgentID"]] = tmpDict
 
             logging.info("Retrieved %i classAds", len(jobInfo))
+
+        return jobInfo
+
+    def getMissingClassAds(self, jobIds):
+        """
+        _getMissingClassAds_
+
+        Lookup for all jobs that have vanished from condor but are supposedly
+        still active. Use the condor history mechanism for that.
+
+        Return the same job classAds as in the getClassAds method, plus the
+        'RemoveReason' for cases where the job was removed from the pool.
+        """
+        jobInfo = {}
+
+        # build up the ExprTree object with the job requirements
+        ad = classad.ClassAd()
+        ad['bar'] = list(jobIds)
+        jobsRequir = "member(WMAgent_JobID, %s)" % ad.lookup("bar").__repr__()
+        listOfClassAds = ["JobStatus", "EnteredCurrentStatus", "JobStartDate", "QDate", "DESIRED_Sites",
+                          "ExtDESIRED_Sites", "MATCH_EXP_JOBGLIDEIN_CMSSite", "WMAgent_JobID"]
+        limit = len(jobIds)
+
+        try:
+            schedd = condor.Schedd()
+            jobiter = schedd.history(jobsRequir, listOfClassAds, limit)
+        except Exception as ex:
+            msg = "Query to condor schedd failed. Retrying again in the next cycle. "
+            msg += str(ex)
+            logging.error(msg)
+            return None
+        else:
+            for slicedAds in grouper(jobiter, 1000):
+                for jobAd in slicedAds:
+                    tmpDict = {}
+                    tmpDict["JobStatus"] = int(jobAd.get("JobStatus", 0))
+                    tmpDict["stateTime"] = int(jobAd["EnteredCurrentStatus"])
+                    tmpDict["runningTime"] = int(jobAd.get("JobStartDate", 0))
+                    tmpDict["submitTime"] = int(jobAd["QDate"])
+                    tmpDict["DESIRED_Sites"] = jobAd["DESIRED_Sites"]
+                    tmpDict["ExtDESIRED_Sites"] = jobAd["ExtDESIRED_Sites"]
+                    tmpDict["runningCMSSite"] = jobAd.get("MATCH_EXP_JOBGLIDEIN_CMSSite", None)
+                    tmpDict["WMAgentID"] = int(jobAd["WMAgent_JobID"])
+                    jobInfo[tmpDict["WMAgentID"]] = tmpDict
+
+            logging.info("Retrieved %i classAds from the history", len(jobInfo))
 
         return jobInfo
 
@@ -1118,15 +1166,15 @@ class PyCondorPlugin(BasePlugin):
         """
         Process jobs where No ClassAd info is received from schedd
         """
+        logging.info("Job with no classAd. Jobid=%i and sched_status %s", job['jobid'], job['status'])
+
         # Mark all jobs to Removed
         if job['status'] != 'Removed':
-            logging.debug("noInfoFlag is True and JobStatus for jobid=%i is %s", job['jobid'], job['status'])
             job['status'] = 'Removed'
             job['status_time'] = int(time.time())
             changeList.append(job)
         elif int(time.time()) - job['status_time'] > self.removeTime:
             # then complete it in BossAir if it's missing for removeTime secs
-            logging.debug("noInfoFlag is True and JobStatus for jobid=%i is %s", job['jobid'], job['status'])
             completeList.append(job)
 
     def procCondorLog(self, job, changeList, completeList, runningList):
