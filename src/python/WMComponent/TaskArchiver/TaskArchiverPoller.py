@@ -236,14 +236,17 @@ class TaskArchiverPoller(BaseWorkerThread):
                         self.requestLocalCouchDB.updateRequestStatus(workflow, "completed")
                         logging.info("status updated to completed %s" % workflow)
     
+                    newState = None
                     if workflow in abortedWorkflows:
                         #TODO: remove when reqmgr2-wmstats deployed
-                        newState = "aborted-completed"
+                        # only abort complete what was already handled by all the agents
+                        if self.isCompleted(workflow):
+                            newState = "aborted-completed"
                     elif workflow in forceCompleteWorkflows:
-                        newState = "completed"
-                    else:
-                        newState = None
-                        
+                        # only abort complete what was already handled by all the agents
+                        if self.isCompleted(workflow):
+                            newState = "completed"
+
                     if newState != None:
                         # update reqmgr workload document only request mgr is installed
                         if not self.useReqMgrForCompletionCheck:
@@ -278,7 +281,20 @@ class TaskArchiverPoller(BaseWorkerThread):
                     logging.error(msg)
                     continue
         return
-    
+
+    def isCompleted(self, workflowName):
+        """
+        Return True if all the workqueue inbox elements are in an end state.
+        Used for force-completing and aborting workflows.
+        """
+        result = False
+        inboxElements = self.workQueue.backend.getInboxElements(WorkflowName=workflowName)
+        if all([elem.inEndState() for elem in inboxElements]):
+            result = True
+
+        return result
+
+
     def notifyWorkQueue(self, subList):
         """
         _notifyWorkQueue_

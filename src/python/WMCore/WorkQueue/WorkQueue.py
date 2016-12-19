@@ -518,13 +518,11 @@ class WorkQueue(WorkQueueBase):
         if not requestNames:
             return []
         inbox_elements = []
-        for wf in requestNames:
-            inbox_elements.extend(self.backend.getInboxElements(WorkflowName=wf))
 
         # if local queue, kill jobs, update parent to Canceled and delete elements
         if self.params['LocalQueueFlag']:
             # if we can talk to wmbs kill the jobs
-            badWfsCancel = []
+            failedCancelation = []
             if self.params['PopulateFilesets']:
                 self.logger.info("Canceling work for workflow(s): %s" % (requestNames))
                 from WMCore.WorkQueue.WMBSHelper import killWorkflow
@@ -536,18 +534,21 @@ class WorkQueue(WorkQueueBase):
                         killWorkflow(workflow, self.params["JobDumpConfig"], self.params["BossAirConfig"])
                     except Exception as ex:
                         self.logger.error('Aborting %s wmbs subscription failed: %s' % (workflow, str(ex)))
-                        badWfsCancel.append(workflow)
+                        failedCancelation.append(workflow)
                         self.logger.error('It will be retried in the next loop')
-            # now we remove any wf that failed to be cancelled (and its inbox elements)
-            requestNames -= set(badWfsCancel)
-            for wf in badWfsCancel:
-                elementsToRemove = self.backend.getInboxElements(WorkflowName=wf)
-                inbox_elements = list(set(inbox_elements) - set(elementsToRemove))
-            self.logger.info("New list of cancelled requests: %s" % requestNames)
-
-            # Don't update as fails sometimes due to conflicts (#3856)
-            [x.load().__setitem__('Status', 'Canceled') for x in inbox_elements if x['Status'] != 'Canceled']
-            self.backend.saveElements(*inbox_elements)
+                    else:
+                        # Update inbox elements. Don't update as fails sometimes due to conflicts (#3856)
+                        inbox_elements = self.backend.getInboxElements(WorkflowName=wf)
+                        #[x.load().__setitem__('Status', 'Canceled') for x in inbox_elements if x['Status'] != 'Canceled']
+                        for x in inbox_elements:
+                            # Only Cancel inbox elements that are acquired by this agent
+                            if x['Status'] != 'Canceled' and (not ['ChildQueueUrl'] or x['ChildQueueUrl'] == self.params['QueueURL']):
+                                x.load().__setitem__('Status', 'Canceled')
+                        self.backend.saveElements(*inbox_elements)
+                        # Then update local workqueue elements, but to Done as TaskArchiver usually does
+                        elements = self.backend.getElements(WorkflowName=wf)
+                        [x.load().__setitem__('Status', 'Done') for x in elements if x['Status'] != 'Done']
+                        self.backend.saveElements(*elements)
 
         # if global queue, update non-acquired to Canceled, update parent to CancelRequested
         else:
@@ -568,6 +569,10 @@ class WorkQueue(WorkQueueBase):
                 [x.load().__setitem__('Status', 'CancelRequested') for x in elements_not_requested]
                 self.backend.saveElements(*elements_not_requested)
                 self.logger.info("CancelRequest-ed element(s) %s" % str([x.id for x in elements_not_requested]))
+
+            inbox_elements = []
+            for wf in requestNames:
+                inbox_elements.extend(self.backend.getInboxElements(WorkflowName=wf))
 
             self.backend.updateInboxElements(
                 *[x.id for x in inbox_elements if x['Status'] != 'CancelRequested' and not x.inEndState()],
