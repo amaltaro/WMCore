@@ -23,6 +23,7 @@ from WMCore.Storage.StageInMgr import StageInMgr
 from WMCore.Storage.DeleteMgr import DeleteMgr
 from WMCore.Storage.StageOutError import StageOutFailure
 from WMCore.WMRuntime.Tools.Scram import Scram, getSingleScramArch
+from WMCore.FwkJobReport.Report import Report
 
 
 class LogCollect(Executor):
@@ -191,24 +192,21 @@ class LogCollect(Executor):
                 if useEdmCopyUtil:
                     with open('scramOutput.log', 'r') as f:
                         logging.error("Scram output: %s", f.read())
-                for log in logs:
-                    self.report.addSkippedFile(log['lfn'], None)
+                msg = "Unable to copy any logArchives to local disk"
+                logging.error(msg)
+                # before raising an exception, make sure to set this error in the FJR
+                print("AMR failed to copy logArchives")
+                #self.registerStepError()
+                raise WMExecutionFailure(60312, "LogCollectError", msg)
 
         # create tarfile if any logArchive copied in
-        if localLogs:
-            tarFile = tarfile.open(tarLocation, 'w:')
-            for log in localLogs:
-                path = log.split('/')
-                tarFile.add(name=log,
-                            arcname=os.path.join(path[-3],
-                                                 path[-2],
-                                                 path[-1]))
-                os.remove(log)
-            tarFile.close()
-        else:
-            msg = "Unable to copy any logArchives to local disk"
-            logging.error(msg)
-            raise WMExecutionFailure(60312, "LogCollectError", msg)
+        tarFile = tarfile.open(tarLocation, 'w:')
+        for log in localLogs:
+            path = log.split('/')
+            tarFile.add(name=log, arcname=os.path.join(path[-3], path[-2], path[-1]))
+            os.remove(log)
+        tarFile.close()
+
 
         # now staging out the LogCollect tarfile
         logging.info("Staging out LogCollect tarfile to Castor and EOS")
@@ -294,3 +292,26 @@ class LogCollect(Executor):
 
         print("Steps.Executors.LogCollect.post called")
         return None
+
+    def registerStepError(self):
+        """
+        Just write anything to the report file
+        """
+        for step in self.stepSpace.taskSpace.stepSpaces():
+            print("AMR step name: %s" % step)
+            if step != self.stepName:
+                continue
+            stepLocation = os.path.join(self.stepSpace.taskSpace.location, step)
+            logging.info("Setting error code to the step %s", step)
+            reportLocation = os.path.join(stepLocation, 'Report.pkl')
+            if not os.path.isfile(reportLocation):
+                logging.error("Cannot find report for step %s in space %s", step, stepLocation)
+                continue
+            # First, get everything from a file and 'unpersist' it
+            stepReport = Report()
+            stepReport.unpersist(reportLocation, step)
+            stepReport.addError(self.stepName, 60408, "StageInFailure", "Unable to stage in files")
+            stepReport.setStepStatus(self.stepName, 1)
+            stepReport.persist(reportLocation)
+
+        return

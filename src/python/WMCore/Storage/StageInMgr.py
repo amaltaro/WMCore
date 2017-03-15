@@ -29,7 +29,7 @@ class StageInSuccess(Exception):
 
 
 
-class StageInMgr:
+class StageInMgr(object):
     """
     _StageInMgr_
 
@@ -177,7 +177,7 @@ class StageInMgr:
                     raise StageInSuccess
                 except StageOutFailure as ex:
                     msg = "===> Local Stage Out Failure for file:\n"
-                    msg += "======>  %s\n" % fileToStage['LFN']
+                    msg += "  %s\n" % fileToStage['LFN']
                     msg += str(ex)
                     print(msg)
             #  //
@@ -198,6 +198,7 @@ class StageInMgr:
             msg += "====> PFN: %s\n" % fileToStage['PFN']
             print(msg)
             return fileToStage
+
         msg = "Unable to stage out file:\n"
         msg += fileToStage['LFN']
         raise StageOutFailure(msg, **fileToStage)

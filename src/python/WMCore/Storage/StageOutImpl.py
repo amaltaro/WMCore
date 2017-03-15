@@ -80,14 +80,13 @@ class StageOutImpl(object):
         """
         try:
             exitCode = runCommand(command)
-            msg = "%s : Command exited with status: %s\n" % (time.strftime("%Y-%m-%dT%H:%M:%S"), exitCode)
-            print(msg)
         except Exception as ex:
             raise StageOutError(str(ex), Command=command, ExitCode=60311)
+
+        msg = "%s : Command exit code: %s\n" % (time.strftime("%Y-%m-%dT%H:%M:%S"), exitCode)
+        print(msg)
         if exitCode:
-            msg = "%s : Command exited non-zero" % time.strftime("%Y-%m-%dT%H:%M:%S")
             print("ERROR: Exception During Stage Out:\n")
-            print(msg)
             raise StageOutError(msg, Command=command, ExitCode=exitCode)
         return
 
@@ -168,61 +167,45 @@ class StageOutImpl(object):
         This operator does the actual stage out by invoking the overridden
         plugin methods of the derived object.
 
-
         """
-        #  //
-        # // Generate the source PFN from the plain PFN if needed
-        # //
+        # Generate the source PFN from the plain PFN if needed
         sourcePFN = self.createSourceName(protocol, inputPFN)
 
         # destination may also need PFN changed
         # i.e. if we are staging in a file from an SE
         targetPFN = self.createTargetName(protocol, targetPFN)
 
-        #  //
-        # // Create the output directory if implemented
-        # //
+        # Create the output directory if implemented
         for retryCount in range(1, self.numRetries + 1):
             try:
                 print("%s : Creating output directory..." % time.strftime("%Y-%m-%dT%H:%M:%S"))
                 self.createOutputDirectory(targetPFN)
                 break
             except StageOutError as ex:
-                msg = "Attempt %s to create a directory for stageout failed.\n" % retryCount
+                msg = "Attempt %s to create a directory for stageout failed. " % retryCount
                 msg += "Automatically retrying in %s secs\n " % self.retryPause
                 msg += "Error details:\n%s\n" % str(ex)
                 print(msg)
                 if retryCount == self.numRetries:
-                    #  //
-                    # // last retry, propagate exception
-                    # //
-                    raise ex
+                    raise
                 time.sleep(self.retryPause)
 
-        # //
-        # // Create the command to be used.
-        # //
+        # Create the command to be used.
         command = self.createStageOutCommand(sourcePFN, targetPFN, options, checksums)
-        #  //
-        # // Run the command
-        # //
 
+        # Run the actual stage out command
         for retryCount in range(1, self.numRetries + 1):
             try:
                 print("%s : Running the stage out..." % time.strftime("%Y-%m-%dT%H:%M:%S"))
                 self.executeCommand(command)
                 break
             except StageOutError as ex:
-                msg = "Attempt %s to stage out failed.\n" % retryCount
+                msg = "Attempt %s to stage out failed. " % retryCount
                 msg += "Automatically retrying in %s secs\n " % self.retryPause
                 msg += "Error details:\n%s\n" % str(ex)
                 print(msg)
                 if retryCount == self.numRetries:
-                    #  //
-                    # // last retry, propagate exception
-                    # //
-                    raise ex
+                    raise
                 time.sleep(self.retryPause)
 
-        # should never reach this point
         return
