@@ -9,6 +9,7 @@ import logging
 import threading
 import traceback
 from collections import defaultdict
+import json
 
 from WMComponent.DBS3Buffer.DBSBufferDataset import DBSBufferDataset
 from WMComponent.DBS3Buffer.DBSBufferFile import DBSBufferFile
@@ -714,6 +715,9 @@ class WMBSHelper(WMConnectionBase):
         wmbsFile['inFileset'] = bool(inFileset)
 
         self.wmbsFilesToCreate.append(wmbsFile)
+        self.logger.info("AMR dumping json for _addACDCFileToWMBSFile, length %s", len(self.wmbsFilesToCreate))
+        with open('/data/srv/addACDCFileToWMBSFile.json') as jo:
+            json.dump(self.wmbsFilesToCreate, jo, indent=2)
 
         return wmbsFile
 
@@ -725,7 +729,7 @@ class WMBSHelper(WMConnectionBase):
         runWhiteList = self.topLevelTask.inputRunWhitelist()
         runBlackList = self.topLevelTask.inputRunBlacklist()
         lumiMask = self.topLevelTask.getLumiMask()
-
+        logging.info("AMR lumiMask %s runBlackList %s and runWhiteList %s", lumiMask, runBlackList, runWhiteList)
         blackMask = None
         if lumiMask:  # We have a lumiMask, so use it and modify with run white/black list
             if runWhiteList:
@@ -736,6 +740,8 @@ class WMBSHelper(WMConnectionBase):
             lumiMask = LumiList(runs=runWhiteList)
             if runBlackList:  # We only have a blacklist, so make a black mask out of it instead
                 lumiMask.removeRuns(runBlackList)
+            logging.info("AMR lumiMask getCompactList %s", lumiMask.getCompactList())
+
         else:
             lumiMask = None
             if runBlackList:
@@ -764,5 +770,9 @@ class WMBSHelper(WMConnectionBase):
                     results.append(f)
             else:  # There is effectively no mask
                 results.append(f)
+
+        logging.info("AMR dumping results json length %s", len(results))
+        with open('/data/srv/valifFiles.json') as jo:
+            json.dump(results, jo, indent=2)
 
         return results

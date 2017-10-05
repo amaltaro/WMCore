@@ -17,6 +17,7 @@ import threading
 import time
 import traceback
 from collections import defaultdict
+import json
 
 from WMCore import Lexicon
 from WMCore.ACDC.DataCollectionService import DataCollectionService
@@ -403,7 +404,7 @@ class WorkQueue(WorkQueueBase):
     def _getDBSBlock(self, match, wmspec):
         """Get DBS info for this block"""
         blockName = match['Inputs'].keys()[0]  # TODO: Allow more than one
-
+        self.logger.info("AMR blockName %s", blockName)
         if match['ACDC']:
             acdcInfo = match['ACDC']
             acdc = DataCollectionService(acdcInfo["server"], acdcInfo["database"])
@@ -412,6 +413,9 @@ class WorkQueue(WorkQueueBase):
                                            acdcInfo['fileset'],
                                            splitedBlockName['Offset'],
                                            splitedBlockName['NumOfFiles'])
+            self.logger.info("AMR fileLists length %s and dumping json", len(fileLists))
+            with open('/data/srv/getDBSBlock.json') as jo:
+                json.dump(fileLists, jo, indent=2)
 
             block = {}
             block["Files"] = fileLists

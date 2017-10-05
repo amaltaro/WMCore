@@ -18,7 +18,8 @@ ACDC unsupported:
 
 """
 __all__ = []
-
+import logging
+from pprint import pformat
 from WMCore.WorkQueue.Policy.Start.StartPolicyInterface import StartPolicyInterface
 from math import ceil
 from WMCore.Services.SiteDB.SiteDB import SiteDBJSON as SiteDB
@@ -90,6 +91,7 @@ class ResubmitBlock(StartPolicyInterface):
         if not acdcInfo:
             raise WorkQueueWMSpecError(self.wmspec, 'No acdc section for %s' % task.getPathName())
         acdc = DataCollectionService(acdcInfo["server"], acdcInfo["database"])
+        logging.info("AMR self.data %s", self.data)
         if self.data:
             acdcBlockSplit = ACDCBlock.splitBlockName(self.data.keys()[0])
         else:
@@ -97,6 +99,7 @@ class ResubmitBlock(StartPolicyInterface):
             # from the spec
             acdcBlockSplit = False
 
+        logging.info("AMR acdcBlockSplit %s", acdcBlockSplit)
         if acdcBlockSplit:
             dbsBlock = {}
             dbsBlock['Name'] = self.data.keys()[0]
@@ -104,6 +107,7 @@ class ResubmitBlock(StartPolicyInterface):
                                       acdcBlockSplit['TaskName'],
                                       acdcBlockSplit['Offset'],
                                       acdcBlockSplit['NumOfFiles'])
+            logging.info("AMR block %s", block)
             dbsBlock['NumberOfFiles'] = block['files']
             dbsBlock['NumberOfEvents'] = block['events']
             dbsBlock['NumberOfLumis'] = block['lumis']
@@ -117,6 +121,8 @@ class ResubmitBlock(StartPolicyInterface):
             if self.args['SplittingAlgo'] in self.unsupportedAlgos:
                 raise WorkQueueWMSpecError(self.wmspec, 'ACDC is not supported for %s' % self.args['SplittingAlgo'])
             splittingFunc = self.defaultAlgo
+            logging.info("AMR splittingFunc %s", splittingFunc)
+            logging.info("AMR self.args['SplittingAlgo'] %s", self.args['SplittingAlgo'])
             if self.args['SplittingAlgo'] in self.algoMapping:
                 splittingFunc = self.algoMapping[self.args['SplittingAlgo']]
             validBlocks = splittingFunc(acdc, acdcInfo, task)

@@ -7,7 +7,8 @@ MySQL implementation of AddRunLumi
 
 from Utils.IteratorTools import grouper
 from WMCore.Database.DBFormatter import DBFormatter
-
+import json
+import logging
 
 class AddRunLumi(DBFormatter):
     sql = """INSERT IGNORE wmbs_file_runlumi_map (fileid, run, lumi, num_events)
@@ -48,6 +49,9 @@ class AddRunLumi(DBFormatter):
 
     def execute(self, file=None, runs=None, conn=None, transaction=False):
         for sliceBinds in grouper(self.getBinds(file, runs), 10000):
+            logging.info("AMR dumping json sliceBinds length %s", len(sliceBinds))
+            with open('/data/srv/sliceBinds.json') as jo:
+                json.dump(sliceBinds, jo, indent=2)
             result = self.dbi.processData(self.sql, sliceBinds, conn=conn,
                                           transaction=transaction)
         return self.format(result)

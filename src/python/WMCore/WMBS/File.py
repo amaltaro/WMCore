@@ -525,6 +525,7 @@ def addFilesToWMBSInBulk(filesetId, workflowName, files, isDBS = True,
         return 0
 
     daofactory = files[0].daofactory
+    logging.info("AMR daofactory %s", daofactory)
     setParentage            = daofactory(classname = "Files.SetParentage")
     setFileRunLumi          = daofactory(classname = "Files.AddRunLumi")
     setFileLocation         = daofactory(classname = "Files.SetLocationForWorkQueue")
