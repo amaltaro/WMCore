@@ -335,7 +335,7 @@ class WorkQueue(WorkQueueBase):
 
         matches, _, _ = self.backend.availableWork(jobSlots, siteJobCounts,
                                                    excludeWorkflows=excludeWorkflows, numElems=numElems)
-
+        self.logger.info('AMR found %d available elements in the local queue', len(matches))
         if not matches:
             return results
 
@@ -345,6 +345,7 @@ class WorkQueue(WorkQueueBase):
         for match in matches:
             blockName, dbsBlock = None, None
             if self.params['PopulateFilesets']:
+                self.logger.info('AMR element for request: %s', match['RequestName'])
                 if match['RequestName'] not in wmspecCache:
                     wmspec = self.backend.getWMSpec(match['RequestName'])
                     wmspecCache[match['RequestName']] = wmspec

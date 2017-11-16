@@ -64,6 +64,7 @@ class WorkQueueManagerWMBSFileFeeder(BaseWorkerThread):
             self.queue.logger.info("I need %d jobs on site %s" % (resources[site], site))
 
         abortedAndForceCompleteRequests = self.abortedAndForceCompleteWorkflowCache.getData()
+        self.queue.logger.info("AMR found %d aborted or force-completed workflows" % len(abortedAndForceCompleteRequests))
 
         previousWorkList = self.queue.getWork(resources, jobCounts, excludeWorkflows=abortedAndForceCompleteRequests)
         self.queue.logger.info("%s of units of work acquired for file creation"
