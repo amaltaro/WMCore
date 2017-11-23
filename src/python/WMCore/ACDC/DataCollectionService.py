@@ -95,6 +95,7 @@ class DataCollectionService(CouchService):
             coll.addFileset(fileset)
             inputFiles = job['input_files']
             for fInfo in inputFiles:
+                logging.info("BCM failedJobs fInfo %s", fInfo)
                 if fInfo["merged"]:
                     fInfo["parents"] = []
                 elif ("parents" in fInfo) and len(fInfo["parents"]) and ("/store/unmerged/" in next(iter(fInfo["parents"]))):

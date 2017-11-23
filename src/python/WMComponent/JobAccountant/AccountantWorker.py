@@ -291,10 +291,12 @@ class AccountantWorker(WMConnectionBase):
 
         # Arrange WMBS parentage
         if len(self.parentageBinds) > 0:
+            logging.info("BCM inserting parentage by job for: %s", self.parentageBinds)
             self.setParentageByJob.execute(binds=self.parentageBinds,
                                            conn=self.getDBConn(),
                                            transaction=self.existingTransaction())
         if len(self.parentageBindsForMerge) > 0:
+            logging.info("BCM inserting parentage by merge job for: %s", self.parentageBindsForMerge)
             self.setParentageByMergeJob.execute(binds=self.parentageBindsForMerge,
                                                 conn=self.getDBConn(),
                                                 transaction=self.existingTransaction())
@@ -386,6 +388,7 @@ class AccountantWorker(WMConnectionBase):
         parentsInfo = self.getParentInfoAction.execute([lfn],
                                                        conn=self.getDBConn(),
                                                        transaction=self.existingTransaction())
+        logging.info("BCM LFN %s has the following parents: %s", lfn, parentsInfo)
         newParents = set()
         for parentInfo in parentsInfo:
             # This will catch straight to merge files that do not have redneck
@@ -407,9 +410,10 @@ class AccountantWorker(WMConnectionBase):
             # If that didn't work, we've reached the great-grandparents
             # And we have to work via recursion
             else:
+                logging.info("BCM calling the great-grandparent recursively: %s", parentInfo['gplfn'])
                 parentSet = self.findDBSParents(lfn=parentInfo['gplfn'])
                 for parent in parentSet:
-                    newParents.add(parent)
+                    newParents.add(parent["lfn"])  ### FIXME shouldn't it be parent['lfn'] ?
 
         return newParents
 
@@ -909,12 +913,12 @@ class AccountantWorker(WMConnectionBase):
         for lfn in outputLFNs:
             newParents = self.findDBSParents(lfn=lfn)
             for parentLFN in newParents:
+                logging.info("Child %s and parent %s", lfn, parentLFN)
                 bindList.append({'child': lfn, 'parent': parentLFN})
 
         # Now all the parents should exist
         # Commit them to DBSBuffer
-        logging.info("About to commit all DBSBuffer Heritage information")
-        logging.info(len(bindList))
+        logging.info("About to commit %d heritage information to DBSBuffer", len(bindList))
 
         if len(bindList) > 0:
             try:
