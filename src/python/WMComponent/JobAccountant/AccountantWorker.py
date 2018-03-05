@@ -60,7 +60,6 @@ class AccountantWorker(WMConnectionBase):
 
         self.getOutputMapAction = self.daofactory(classname="Jobs.GetOutputMap")
         self.bulkAddToFilesetAction = self.daofactory(classname="Fileset.BulkAddByLFN")
-        self.bulkParentageAction = self.daofactory(classname="Files.AddBulkParentage")
         self.getJobTypeAction = self.daofactory(classname="Jobs.GetType")
         self.getParentInfoAction = self.daofactory(classname="Files.GetParentAndGrandParentInfo")
         self.setParentageByJob = self.daofactory(classname="Files.SetParentageByJob")
@@ -71,15 +70,11 @@ class AccountantWorker(WMConnectionBase):
         self.addFileAction = self.daofactory(classname="Files.Add")
         self.jobCompleteInput = self.daofactory(classname="Jobs.CompleteInput")
         self.setBulkOutcome = self.daofactory(classname="Jobs.SetOutcomeBulk")
-        self.getWorkflowSpec = self.daofactory(classname="Workflow.GetSpecAndNameFromTask")
         self.getJobInfoByID = self.daofactory(classname="Jobs.LoadFromID")
         self.getFullJobInfo = self.daofactory(classname="Jobs.LoadForErrorHandler")
         self.getJobTaskNameAction = self.daofactory(classname="Jobs.GetFWJRTaskName")
         self.pnn_to_psn = self.daofactory(classname="Locations.GetPNNtoPSNMapping").execute()
 
-        self.dbsStatusAction = self.dbsDaoFactory(classname="DBSBufferFiles.SetStatus")
-        self.dbsParentStatusAction = self.dbsDaoFactory(classname="DBSBufferFiles.GetParentStatus")
-        self.dbsChildrenAction = self.dbsDaoFactory(classname="DBSBufferFiles.GetChildren")
         self.dbsCreateFiles = self.dbsDaoFactory(classname="DBSBufferFiles.Add")
         self.dbsSetLocation = self.dbsDaoFactory(classname="DBSBufferFiles.SetLocationByLFN")
         self.dbsInsertLocation = self.dbsDaoFactory(classname="DBSBufferFiles.AddLocation")
@@ -289,10 +284,12 @@ class AccountantWorker(WMConnectionBase):
 
         # Arrange WMBS parentage
         if len(self.parentageBinds) > 0:
+            logging.info("AMR self.parentageBinds %s", self.parentageBinds)
             self.setParentageByJob.execute(binds=self.parentageBinds,
                                            conn=self.getDBConn(),
                                            transaction=self.existingTransaction())
         if len(self.parentageBindsForMerge) > 0:
+            logging.info("AMR self.parentageBindsForMerge %s", self.parentageBindsForMerge)
             self.setParentageByMergeJob.execute(binds=self.parentageBindsForMerge,
                                                 conn=self.getDBConn(),
                                                 transaction=self.existingTransaction())
@@ -428,12 +425,15 @@ class AccountantWorker(WMConnectionBase):
 
         wmbsFile = self.createFileFromDataStructsFile(file=fwjrFile, jobID=jobID)
 
+        logging.info("AMR addFileToWMBS jobType %s and wmbsFile %s", jobType, wmbsFile)
+        logging.info("AMR fileRef %s", wmbsFile['fileRef'].dictionary_whole_tree_())
         if jobType == "Merge":
             self.wmbsMergeFilesToBuild.append(wmbsFile)
         else:
             self.wmbsFilesToBuild.append(wmbsFile)
 
         if fwjrFile["merged"]:
+            logging.info("AMR addFileToWMBS merged fwjrFile %s", fwjrFile)
             self.addFileToDBS(fwjrFile, task,
                               jobType == "Repack" and fwjrFile["size"] > self.maxAllowedRepackOutputSize)
 
@@ -453,6 +453,7 @@ class AccountantWorker(WMConnectionBase):
                                                     conn=self.getDBConn(),
                                                     transaction=self.existingTransaction())
 
+        logging.info("AMR job %s with outputMap %s", jobID, outputMap)
         jobType = self.getJobTypeAction.execute(jobID=jobID,
                                                 conn=self.getDBConn(),
                                                 transaction=self.existingTransaction())
@@ -791,6 +792,7 @@ class AccountantWorker(WMConnectionBase):
             if lfn is None:
                 continue
 
+            logging.info("AMR handleWMBSFiles wmbsFile %s", wmbsFile)
             selfChecksums = wmbsFile['checksums']
             # by jobType add to different parentage relation
             # if it is the merge job, don't include the parentage on failed input files.
@@ -900,13 +902,13 @@ class AccountantWorker(WMConnectionBase):
         bindList = []
         for lfn in outputLFNs:
             newParents = self.findDBSParents(lfn=lfn)
+            logging.info("AMR handleDBSBufferParentage child %s and parents %s", lfn, newParents)
             for parentLFN in newParents:
                 bindList.append({'child': lfn, 'parent': parentLFN})
 
         # Now all the parents should exist
         # Commit them to DBSBuffer
-        logging.info("About to commit all DBSBuffer Heritage information")
-        logging.info(len(bindList))
+        logging.info("About to commit %d DBSBuffer Heritage information", len(bindList))
 
         if len(bindList) > 0:
             try:
@@ -916,10 +918,9 @@ class AccountantWorker(WMConnectionBase):
             except WMException:
                 raise
             except Exception as ex:
-                msg = "Error while trying to handle the DBS LFN heritage\n"
-                msg += str(ex)
+                msg = "Error while trying to handle the DBS LFN heritage. Error: %s\n" % str(ex)
                 msg += "BindList: %s" % bindList
-                logging.error(msg)
+                logging.exception(msg)
                 raise AccountantWorkerException(msg)
         return
 
