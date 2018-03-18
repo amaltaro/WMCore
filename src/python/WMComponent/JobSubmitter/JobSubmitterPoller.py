@@ -12,7 +12,10 @@ from __future__ import print_function, division
 import logging
 import os.path
 import threading
+import gc
+import objgraph
 from collections import defaultdict, Counter
+from memory_profiler import profile
 try:
     import cPickle as pickle
 except ImportError:
@@ -132,6 +135,8 @@ class JobSubmitterPoller(BaseWorkerThread):
         else:
             # Tier0 Case - just for the clarity (This private variable shouldn't be used
             self.abortedAndForceCompleteWorkflowCache = None
+        # disable automatic garbage collection
+        #gc.disable()
 
         return
 
@@ -245,6 +250,8 @@ class JobSubmitterPoller(BaseWorkerThread):
             logging.info("Skipping cache update to be submitted. (%s job in cache)", len(self.jobDataCache))
         return False
 
+    refreshFp = open('refreshCache_stats.log', 'w+')
+    @profile(stream=refreshFp)
     def refreshCache(self):
         """
         _refreshCache_
@@ -465,6 +472,8 @@ class JobSubmitterPoller(BaseWorkerThread):
         self.setFWJRPathAction.execute(binds=fwjrBinds)
         return
 
+    thresholdFp = open('getThresholds_stats.log', 'w+')
+    @profile(stream=thresholdFp)
     def getThresholds(self):
         """
         _getThresholds_
@@ -673,6 +682,8 @@ class JobSubmitterPoller(BaseWorkerThread):
         logging.info("Done assigning site locations.")
         return jobsToSubmit
 
+    submitFp = open('submitJobs.log', 'w+')
+    @profile(stream=submitFp)
     def submitJobs(self, jobsToSubmit):
         """
         _submitJobs_
@@ -700,6 +711,9 @@ class JobSubmitterPoller(BaseWorkerThread):
 
         # Run the actual underlying submit code using bossAir
         successList, failList = self.bossAir.submit(jobs=jobList)
+        #logging.info("successList %s", successList)
+        #logging.info("failList %s", failList)
+        #logging.info("error %s", error)
         logging.info("Jobs that succeeded/failed submission: %d/%d.", len(successList), len(failList))
 
         # Propagate states in the WMBS database
@@ -732,7 +746,9 @@ class JobSubmitterPoller(BaseWorkerThread):
                 self.locationDict[jobSite].get('plugin'),
                 self.locationDict[jobSite].get('cms_name'))
 
+    algorithmFp = open('algorithm_stats.log', 'w+')
     @timeFunction
+    @profile(stream=algorithmFp)
     def algorithm(self, parameters=None):
         """
         _algorithm_
@@ -766,7 +782,6 @@ class JobSubmitterPoller(BaseWorkerThread):
             self.getThresholds()
             if self.hasToRefreshCache():
                 self.refreshCache()
-
             jobsToSubmit = self.assignJobLocations()
             self.submitJobs(jobsToSubmit=jobsToSubmit)
         except WMException:
@@ -782,6 +797,10 @@ class JobSubmitterPoller(BaseWorkerThread):
             if getattr(myThread, 'transaction', None) != None:
                 myThread.transaction.rollback()
             raise JobSubmitterPollerException(msg)
+
+        #logging.info("Stats before collecting objects:\n%s", objgraph.most_common_types(limit=10))
+        #logging.info("Memory released, %d objects unreacheable.", gc.collect())
+        logging.info("Stats after collecting objects:\n%s", objgraph.most_common_types(limit=10))
 
         return
 

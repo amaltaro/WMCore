@@ -4,7 +4,6 @@ _ResourceControl_
 
 Library from manipulating and querying the resource control database.
 """
-
 from WMCore.BossAir.BossAirAPI import BossAirAPI
 from WMCore.DAOFactory import DAOFactory
 from WMCore.WMConnectionBase import WMConnectionBase

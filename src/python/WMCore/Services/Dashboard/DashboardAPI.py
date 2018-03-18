@@ -48,7 +48,7 @@ class DashboardAPI(object):
 
         Private method that returns an instance of ApMon
         """
-        self.logger.debug("Creating ApMon with static configuration")
+        #self.logger.debug("Creating ApMon with static configuration")
         apMonConf = {self.server: self.defaultParams}
         try:
             return apmon.ApMon(apMonConf, self.logger)
@@ -83,7 +83,7 @@ class DashboardAPI(object):
                     self.logger.debug("Sending info to dashboard for MonitorID: %s", job['MonitorID'])
                     self.apmon.sendParameters(job.pop('MonitorID'), job.pop('MonitorJobID'), job)
                 else:
-                    self.logger.debug("Sending info to dashboard for jobid: %s", job['jobId'])
+                    #self.logger.debug("Sending info to dashboard for jobid: %s", job['jobId'])
                     self.apmon.sendParameters(job['taskId'], job['jobId'], job)
             except Exception as ex:
                 msg = "Error sending the following job information to dashboard: %s\n" % job

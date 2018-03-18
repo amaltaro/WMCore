@@ -20,6 +20,9 @@ import os.path
 import threading
 import logging
 import subprocess
+import gc
+import objgraph
+from pprint import pformat
 from WMCore.JobStateMachine.ChangeState import ChangeState
 from WMCore.DAOFactory import DAOFactory
 from WMCore.WMFactory import WMFactory
@@ -92,6 +95,7 @@ class BossAirAPI(WMConnectionBase):
 
         self.states = None
         self.loadPlugin(noSetup)
+        #gc.disable()
 
         return
 
@@ -289,7 +293,7 @@ class BossAirAPI(WMConnectionBase):
 
         jobList = self.loadByWMBSDAO.execute(jobs=wmbsJobs, conn=self.getDBConn(),
                                              transaction=self.existingTransaction())
-
+        #logging.info("AMR jobList %s from dao in loadByWMBS: %s", type(jobList[0]), pformat(jobList))
         loadedJobs = []
         for job in jobList:
             rj = RunJob()
@@ -595,7 +599,9 @@ class BossAirAPI(WMConnectionBase):
 
         # Now get a list of which jobs are in the batch system
         # only kill jobs present there
+        #logging.info("AMR jobs %s in kill: %s", type(jobs[0]), pformat(jobs))
         loadedJobs = self._buildRunningJobs(wmbsJobs=jobs)
+        logging.info("BossAir received %d and loaded %d jobs", len(jobs), len(loadedJobs))
 
         for runningJob in loadedJobs:
             plugin = runningJob['plugin']
@@ -654,6 +660,15 @@ class BossAirAPI(WMConnectionBase):
                 finally:
                     # Even if kill fails, complete the jobs
                     self._completeKill(jobs=jobsToKill[plugin])
+                    # clean up the mess
+                    #logging.info("Stats before clearing objects:\n%s", objgraph.most_common_types(limit=10))
+                    #del jobs[:]
+                    #del loadedJobs[:]
+                    #jobsToKill.clear()
+                    #logging.info("B Stats after clearing objects:\n%s", objgraph.most_common_types(limit=10))
+                    #logging.info("B Memory released, %d objects unreacheable.", gc.collect())
+                    logging.info("B Stats of object types still in memory:\n%s", objgraph.most_common_types(limit=10))
+                    #logging.info("B List of uncollectable objects:\n%s", gc.garbage)
         return
 
     def update(self, jobs):

@@ -823,7 +823,6 @@ class JobSubmitterTest(EmulatedUnitTestCase):
             self.setResourceThresholds(site, pendingSlots=20000, runningSlots=999999, tasks=['Processing', 'Merge'],
                                        Processing={'pendingSlots': 10000, 'runningSlots': 999999},
                                        Merge={'pendingSlots': 10000, 'runningSlots': 999999, 'priority': 5})
-
         # Always initialize the submitter after setting the sites, flaky!
         jobSubmitter = JobSubmitterPoller(config=config)
 

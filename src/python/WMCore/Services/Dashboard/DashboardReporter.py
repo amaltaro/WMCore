@@ -75,11 +75,11 @@ class DashboardReporter(WMObject):
         Additionally the job should carry information about the task according
         to the description of the addTask method
         """
-        logging.info ("Handling %d created jobs" % len(jobs))
+        #logging.info ("Handling %d created jobs" % len(jobs))
 
         jobParams = []
         for job in jobs:
-            logging.debug("Sending info for job %s" % str(job))
+            #logging.debug("Sending info for job %s" % str(job))
 
             jobid = '%s_%i' % (job['name'], job['retry_count'])
             package = {}
@@ -116,7 +116,7 @@ class DashboardReporter(WMObject):
 
         jobParams = []
         for job in jobs:
-            logging.debug("Sending info for job %s" % str(job))
+            #logging.debug("Sending info for job %s" % str(job))
 
             jobid = '%s_%i' % (job['name'], job['retry_count'])
             package = {}
