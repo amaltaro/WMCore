@@ -13,7 +13,7 @@ import logging
 import os.path
 import threading
 from collections import defaultdict, Counter
-
+from pprint import pformat
 try:
     import cPickle as pickle
 except ImportError:
@@ -153,14 +153,17 @@ class JobSubmitterPoller(BaseWorkerThread):
 
         # If we have no collections, return 0 (PackageCollection_0)
         if len(collections) < 1:
+            logging.info("AMR sandboxDir %s hasn't collections yet, returning 0", sandboxDir)
             return 0
 
         # Loop over the list of PackageCollections
         for collection in collections:
+            logging.info("AMR checking collection %s ...", collection)
             collectionPath = os.path.join(sandboxDir, collection)
             packageList = os.listdir(collectionPath)
             collectionNum = int(collection.split('_')[1])
             if len(packageList) < self.collSize:
+                logging.info("AMR packageList length %s smaller than collSize, returning %s", len(packageList), collectionNum)
                 return collectionNum
             else:
                 numberList.append(collectionNum)
@@ -168,6 +171,7 @@ class JobSubmitterPoller(BaseWorkerThread):
         # If we got here, then all collections are full.  We'll need
         # a new one.  Find the highest number, increment by one
         numberList.sort()
+        logging.info("AMR all collections full, return the greatest num + 1 out of %s", numberList)
         return numberList[-1] + 1
 
     def addJobsToPackage(self, loadedJob):
@@ -192,15 +196,21 @@ class JobSubmitterPoller(BaseWorkerThread):
                                          'batch_%s' % batchid)
 
             # Now create the package object
+            logging.info("AMR adding batchid %s, collectionIndex %s and collectionDir %s to jobsToPackage",
+                         batchid, collectionIndex, collectionDir)
             self.jobsToPackage[loadedJob["workflow"]] = {"batchid": batchid,
                                                          'id': loadedJob['id'],
                                                          "package": JobPackage(directory=collectionDir)}
+        else:
+            logging.info("AMR jobsToPackage already contains this job %s", loadedJob)
 
         jobPackage = self.jobsToPackage[loadedJob["workflow"]]["package"]
         jobPackage[loadedJob["id"]] = loadedJob.getDataStructsJob()
         batchDir = jobPackage['directory']
+        logging.info("AMR batchDir is %s with jobPackage %s", batchDir, pformat(jobPackage))
 
         if len(jobPackage.keys()) == self.packageSize:
+            logging.info("AMR jobPackage %s has 500 keys, it will be soon deleted", batchDir)
             if not os.path.exists(batchDir):
                 os.makedirs(batchDir)
 
@@ -220,6 +230,7 @@ class JobSubmitterPoller(BaseWorkerThread):
         for workflowName in workflowNames:
             jobPackage = self.jobsToPackage[workflowName]["package"]
             batchDir = jobPackage['directory']
+            logging.info("AMR flushing to batchDir %s jobPackage %s", batchDir, pformat(jobPackage))
 
             if not os.path.exists(batchDir):
                 os.makedirs(batchDir)
