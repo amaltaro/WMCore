@@ -13,6 +13,7 @@ import logging
 import os.path
 import threading
 import gc
+import types
 import objgraph
 from collections import defaultdict, Counter
 from memory_profiler import profile
@@ -758,6 +759,10 @@ class JobSubmitterPoller(BaseWorkerThread):
         2) Find jobs for all the necessary sites
         3) Submit the jobs to the plugin
         """
+        roots = objgraph.get_leaking_objects()
+        logging.info("AMR init possible leaking objs: %s", len(roots))
+        logging.info("AMR init most common types: %s", objgraph.most_common_types(objects=roots))
+
         myThread = threading.currentThread()
 
         if self.useReqMgrForCompletionCheck:
@@ -779,10 +784,14 @@ class JobSubmitterPoller(BaseWorkerThread):
 
         try:
             myThread.logdbClient.delete("JobSubmitter_submitWork", "warning", this_thread=True)
+            logging.info("AMR initial-1 possible leaking objs: %s", len(objgraph.get_leaking_objects()))
             self.getThresholds()
+            logging.info("AMR initial-2 possible leaking objs: %s", len(objgraph.get_leaking_objects()))
             if self.hasToRefreshCache():
                 self.refreshCache()
+            logging.info("AMR initial possible leaking objs: %s", len(objgraph.get_leaking_objects()))
             jobsToSubmit = self.assignJobLocations()
+            logging.info("AMR mid possible leaking objs: %s", len(objgraph.get_leaking_objects()))
             self.submitJobs(jobsToSubmit=jobsToSubmit)
         except WMException:
             if getattr(myThread, 'transaction', None) != None:
@@ -798,6 +807,11 @@ class JobSubmitterPoller(BaseWorkerThread):
                 myThread.transaction.rollback()
             raise JobSubmitterPollerException(msg)
 
+        roots = objgraph.get_leaking_objects()
+        logging.info("AMR final possible leaking objs: %s and object %s", len(roots), roots)
+        logging.info("AMR final most common types: %s", objgraph.most_common_types(objects=roots))
+        logging.info("AMR final instancemethod: %s", objgraph.find_backref_chain(roots[0], lambda x: isinstance(x, JobSubmitterPoller)))
+        #logging.info("AMR ... %s", objgraph.show_refs(roots[:3], refcounts=True, filename='alan.png'))
         #logging.info("Stats before collecting objects:\n%s", objgraph.most_common_types(limit=10))
         #logging.info("Memory released, %d objects unreacheable.", gc.collect())
         logging.info("Stats after collecting objects:\n%s", objgraph.most_common_types(limit=10))

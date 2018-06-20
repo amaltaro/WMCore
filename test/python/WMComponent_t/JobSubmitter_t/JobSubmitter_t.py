@@ -14,6 +14,7 @@ import pstats
 import threading
 import time
 import unittest
+import objgraph
 
 from WMCore_t.WMSpec_t.TestSpec import testWorkload
 from nose.plugins.attrib import attr
@@ -808,31 +809,40 @@ class JobSubmitterTest(EmulatedUnitTestCase):
         code has to be updated with decorators.
         NOTE: Never run it on jenkins
         """
+        print("AMR unittest-1 leaking objs: %s" % len(objgraph.get_leaking_objects()))
         workload = self.createTestWorkload()
         config = self.getConfig()
         changeState = ChangeState(config)
         # myResourceControl = ResourceControl(config)
 
-        nSubs = 20
+        nSubs = 5
         nJobs = 100
+        print("AMR unittest-2 leaking objs: %s" % len(objgraph.get_leaking_objects()))
 
         sites = ['T2_US_Florida', 'T2_RU_INR', 'T3_CO_Uniandes', 'T1_US_FNAL']
         allSites = SiteDBJSON().PSNtoPNNMap('.*')
+        print("AMR unittest-3 leaking objs: %s" % len(objgraph.get_leaking_objects()))
 
         for site in allSites:
             self.setResourceThresholds(site, pendingSlots=20000, runningSlots=999999, tasks=['Processing', 'Merge'],
                                        Processing={'pendingSlots': 10000, 'runningSlots': 999999},
                                        Merge={'pendingSlots': 10000, 'runningSlots': 999999, 'priority': 5})
+        print("AMR unittest-4 leaking objs: %s" % len(objgraph.get_leaking_objects()))
+
         # Always initialize the submitter after setting the sites, flaky!
         jobSubmitter = JobSubmitterPoller(config=config)
+        print("AMR unittest-5 leaking objs: %s" % len(objgraph.get_leaking_objects()))
 
         self.createJobGroups(nSubs=nSubs, nJobs=nJobs, wfPrio=10,
                              task=workload.getTask("ReReco"),
                              workloadSpec=self.workloadSpecPath,
                              site=[x for x in sites], changeState=changeState)
+        print("AMR unittest-6 leaking objs: %s" % len(objgraph.get_leaking_objects()))
 
         # Actually run it
         jobSubmitter.algorithm()  # cycle 1
+        print("AMR unittest-7 leaking objs: %s" % len(objgraph.get_leaking_objects()))
+
 
         self.createJobGroups(nSubs=nSubs, nJobs=nJobs, wfPrio=10,
                              task=workload.getTask("ReReco"),
@@ -841,12 +851,14 @@ class JobSubmitterTest(EmulatedUnitTestCase):
         # myResourceControl.changeSiteState('T2_US_Florida', 'Draining')
         jobSubmitter.algorithm()  # cycle 2
 
-        self.createJobGroups(nSubs=nSubs, nJobs=nJobs, wfPrio=10,
-                             task=workload.getTask("ReReco"),
-                             workloadSpec=self.workloadSpecPath,
-                             site=[x for x in sites], changeState=changeState)
+        #self.createJobGroups(nSubs=nSubs, nJobs=nJobs, wfPrio=10,
+        #                     task=workload.getTask("ReReco"),
+        #                     workloadSpec=self.workloadSpecPath,
+        #                     site=[x for x in sites], changeState=changeState)
         # myResourceControl.changeSiteState('T2_RU_INR', 'Draining')
         jobSubmitter.algorithm()  # cycle 3
+        print(alan)
+        return
 
         self.createJobGroups(nSubs=nSubs, nJobs=nJobs, wfPrio=10,
                              task=workload.getTask("ReReco"),
