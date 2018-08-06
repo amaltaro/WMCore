@@ -4,7 +4,7 @@ _SiblingSubscriptionsFailed_
 
 MySQL implementation of Subscription.SiblingSubscriptionsFailed
 """
-
+import logging
 from WMCore.Database.DBFormatter import DBFormatter
 
 class SiblingSubscriptionsFailed(DBFormatter):
@@ -33,6 +33,7 @@ class SiblingSubscriptionsFailed(DBFormatter):
                                                   "subscription": subscription},
                                        conn = conn, transaction = transaction)
         failedFiles = self.formatDict(results)
+        logging.info("Files failed %s", failedFiles)
 
         if len(failedFiles) > 0:
             self.dbi.processData(self.delete, failedFiles, conn = conn,

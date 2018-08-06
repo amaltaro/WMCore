@@ -9,6 +9,7 @@ have completed processing it.
 import threading
 import logging
 
+from Utils.IteratorTools import grouper
 from WMCore.WMBS.File import File
 
 from WMCore.JobSplitting.JobFactory import JobFactory
@@ -36,9 +37,9 @@ class SiblingProcessingBased(JobFactory):
         completeFiles = fileAvail.execute(self.subscription["id"],
                                           conn = myThread.transaction.conn,
                                           transaction = True)
-
+        logging.info("AMR list of completeFiles in SiblingSubscriptionsComplete: %s", completeFiles)
         self.subscription["fileset"].load()
-        if self.subscription["fileset"].open == True:
+        if self.subscription["fileset"].open is True:
             filesetClosed = False
         else:
             fileFailed = daoFactory(classname = "Subscriptions.SiblingSubscriptionsFailed")
@@ -65,20 +66,16 @@ class SiblingProcessingBased(JobFactory):
             if len(fileSites[siteName]) < filesPerJob and not filesetClosed:
                 continue
 
+            # we either have enough files or the fileset is closed
             self.newGroup()
-            while len(fileSites[siteName]) >= filesPerJob:
-                self.newJob(name = makeUUID())
-                for jobFile in fileSites[siteName][0:filesPerJob]:
-                    newFile = File(id = jobFile["id"], lfn = jobFile["lfn"],
-                                   events = jobFile["events"])
-                    newFile["locations"] = set([jobFile["pnn"]])
-                    self.currentJob.addFile(newFile)
+            for sliceFiles in grouper(fileSites[siteName], filesPerJob):
+                if not filesetClosed and len(sliceFiles) < filesPerJob:
+                    # wait and accumulate more files then
+                    continue
 
-                fileSites[siteName] = fileSites[siteName][filesPerJob:]
-
-            if filesetClosed and len(fileSites[siteName]) > 0:
                 self.newJob(name = makeUUID())
-                for jobFile in fileSites[siteName]:
+                logging.info("AMR creating cleanup job for %s with %d files", siteName, len(sliceFiles))
+                for jobFile in sliceFiles:
                     newFile = File(id = jobFile["id"], lfn = jobFile["lfn"],
                                    events = jobFile["events"])
                     newFile["locations"] = set([jobFile["pnn"]])

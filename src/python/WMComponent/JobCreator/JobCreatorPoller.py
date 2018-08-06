@@ -461,6 +461,7 @@ class JobCreatorPoller(BaseWorkerThread):
 
         # First, get list of Subscriptions
         subscriptions = self.subscriptionList.execute()
+        logging.info("AMR found %d unique subscriptions with available files", len(subscriptions))
 
         # Okay, now we have a list of subscriptions
         for subscriptionID in subscriptions:

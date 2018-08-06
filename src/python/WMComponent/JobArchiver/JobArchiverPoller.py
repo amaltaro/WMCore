@@ -341,7 +341,7 @@ class JobArchiverPoller(BaseWorkerThread):
             openFileset = Fileset(id=closableFileset)
             openFileset.load()
 
-            logging.debug("Closing fileset %s", openFileset.name)
+            logging.info("Closing fileset %s", openFileset.name)
             openFileset.markOpen(False)
 
         myThread.transaction.commit()
