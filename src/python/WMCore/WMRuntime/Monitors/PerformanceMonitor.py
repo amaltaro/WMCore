@@ -102,7 +102,6 @@ class PerformanceMonitor(WMRuntimeMonitor):
         self.softTimeout = args.get('softTimeout', None)
         self.hardTimeout = args.get('hardTimeout', None)
         self.numOfCores = args.get('cores', None)
-
         self.logPath = os.path.join(logPath)
 
         return
@@ -191,6 +190,8 @@ class PerformanceMonitor(WMRuntimeMonitor):
         stdout, stderr, retcode = subprocessAlgos.runCommand(cmd)
 
         output = stdout.split()
+        logging.info("AMR job settings. MaxRSS: %s and MaxVSize %s", self.maxRSS, self.maxVSize)
+        logging.info("AMR output from ps command: %s", output)
         if not len(output) > 7:
             # Then something went wrong in getting the ps data
             msg = "Error when grabbing output from process ps\n"
