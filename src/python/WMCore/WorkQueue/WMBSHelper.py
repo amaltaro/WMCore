@@ -8,6 +8,7 @@ Use WMSpecParser to extract information for creating workflow, fileset, and subs
 import logging
 import threading
 from collections import defaultdict
+from pprint import pformat
 
 from WMComponent.DBS3Buffer.DBSBufferDataset import DBSBufferDataset
 from WMComponent.DBS3Buffer.DBSBufferFile import DBSBufferFile
@@ -412,21 +413,20 @@ class WMBSHelper(WMConnectionBase):
             logging.exception("Failed to create subscription. Error: %s", str(ex))
             raise ex
 
-        if block != None:
-            logging.info('"%s" Injecting block %s (%d files) into wmbs', self.wmSpec.name(),
-                         self.block,
-                         len(block['Files']))
+        if block is not None:
+            logging.info('Injecting block %s (%d files) for request %s into wmbs', self.block,
+                         len(block['Files']), self.wmSpec.name())
             addedFiles = self.addFiles(block)
         # For MC case
         else:
-            logging.info(
-                '"%s" Injecting production %s:%s:%s - %s:%s:%s (run:lumi:event) into wmbs', self.wmSpec.name(),
-                self.mask['FirstRun'],
-                self.mask['FirstLumi'],
-                self.mask['FirstEvent'],
-                self.mask['LastRun'],
-                self.mask['LastLumi'],
-                self.mask['LastEvent'])
+            logging.info('Injecting production %s:%s:%s - %s:%s:%s (run:lumi:event) for request %s into wmbs',
+                         self.mask['FirstRun'],
+                         self.mask['FirstLumi'],
+                         self.mask['FirstEvent'],
+                         self.mask['LastRun'],
+                         self.mask['LastLumi'],
+                         self.mask['LastEvent'],
+                         self.wmSpec.name())
             addedFiles = self.addMCFakeFile()
 
         self.commitTransaction(existingTransaction)
@@ -448,6 +448,7 @@ class WMBSHelper(WMConnectionBase):
 
         if self.topLevelTask.getInputACDC():
             self.isDBS = False
+            #logging.info("AMR block['Files'] %s", pformat(block['Files']))
             logging.info('Adding ACDC files into WMBS for %s', self.wmSpec.name())
             for acdcFile in self.validFiles(block['Files']):
                 self._addACDCFileToWMBSFile(acdcFile)
@@ -677,6 +678,8 @@ class WMBSHelper(WMConnectionBase):
         """
         adds the ACDC files into WMBS database
         """
+        #logging.info("AMR adding acdcFile %s with inFileset %s", pformat(acdcFile), inFileset)
+        logging.info("AMR inFileset %s, adding acdcFile %s", inFileset, acdcFile['lfn'])
         wmbsParents = []
         # TODO:  this check can be removed when ErrorHandler filters parents file for unmerged data
         if acdcFile["parents"]:

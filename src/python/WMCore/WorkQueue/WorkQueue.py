@@ -17,6 +17,7 @@ import threading
 import time
 import traceback
 from collections import defaultdict
+from pprint import pformat
 
 from WMCore import Lexicon
 from WMCore.ACDC.DataCollectionService import DataCollectionService
@@ -435,6 +436,7 @@ class WorkQueue(WorkQueueBase):
         mask = match['Mask']
         wmbsHelper = WMBSHelper(wmspec, match['TaskName'], blockName, mask, self.params['CacheDir'])
 
+        #self.logger.info("AMR dbsBlock %s", pformat(dbsBlock))
         sub, match['NumOfFilesAdded'] = wmbsHelper.createSubscriptionAndAddFiles(block=dbsBlock)
         self.logger.info("Created top level subscription %s for %s with %s files" % (sub['id'],
                                                                                      match['RequestName'],
