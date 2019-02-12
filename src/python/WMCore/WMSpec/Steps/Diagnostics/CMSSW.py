@@ -66,6 +66,8 @@ class Exit50513(DiagnosticHandler):
         if args.get('ExceptionInstance', False):
             msg += str(args.get('ExceptionInstance'))
 
+        logging.info("AMR workingDir %s and jobReport %s", executor.step.builder.workingDir,
+                     executor.step.output.jobReport)
         jobReport = os.path.join(executor.step.builder.workingDir,
                                  executor.step.output.jobReport)
         errLog = os.path.join(os.path.dirname(jobReport),
@@ -131,6 +133,8 @@ class CMSDefaultHandler(DiagnosticHandler):
             msg += '\n Adding last %s lines of CMSSW stdout:\n' % DEFAULT_TAIL_LINES_FROM_LOG
             msg += logTail
 
+        logging.info("AMR default workingDir %s and jobReport %s", executor.step.builder.workingDir,
+                     executor.step.output.jobReport)
         # If it exists, grab the SCRAM log
         errLog = os.path.join(os.path.dirname(jobRepXml),
                               'scramOutput.log')
