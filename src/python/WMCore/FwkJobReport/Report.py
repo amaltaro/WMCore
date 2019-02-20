@@ -343,6 +343,27 @@ class Report(object):
 
         return returnCode
 
+    def getStepExitCodeAndDetails(self, stepName):
+        """
+        _getStepExitCodeAndDetails_
+
+        Get the exit code, the error type and the error message for a particular step
+        Return 0 if none
+        """
+        returnCode = 0
+        returnType = ""
+        returnDetails = ""
+        reportStep = self.retrieveStep(stepName)
+        errorCount = getattr(reportStep.errors, "errorCount", 0)
+        for i in range(errorCount):
+            reportError = getattr(reportStep.errors, "error%i" % i)
+            if not getattr(reportError, 'exitCode', None):
+                returnCode = 99999
+            else:
+                return int(reportError.exitCode), reportError.type, reportError.details
+
+        return returnCode, returnType, returnDetails
+
     def persist(self, filename):
         """
         _persist_

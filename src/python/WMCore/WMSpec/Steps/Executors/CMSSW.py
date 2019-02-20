@@ -245,18 +245,18 @@ class CMSSW(Executor):
 
         if returncode != 0:
             argsDump = {'arguments': args}
-            msg = "Error running cmsRun\n%s\n" % argsDump
+            rtype = "CmsRunFailure"
+            rdetails = "Error running cmsRun\n%s\n" % argsDump
             try:
                 self.report.parse(jobReportXML, stepName=self.stepName)
-                returncode = self.report.getStepExitCode(stepName=self.stepName)
-                msg += "CMSSW Return code: %s\n" % returncode
+                returncode, rtype, rdetails = self.report.getStepExitCodeAndDetails(stepName=self.stepName)
             except Exception as ex:
                 # If report parsing fails, report linux exit code
-                msg += "Linux Return code: %s\n" % returncode
+                rdetails += "Linux Return code: %s\n" % returncode
             finally:
-                logging.critical(msg)
+                logging.critical(rdetails)
                 self._setStatus(returncode)
-                raise WMExecutionFailure(returncode, "CmsRunFailure", msg)
+                raise WMExecutionFailure(returncode, rtype, rdetails)
         else:
             self._setStatus(returncode)
 
