@@ -37,6 +37,17 @@ class Run(WMObject):
             return sorted(self.eventsPerLumi.keys()) < sorted(rhs.eventsPerLumi.keys())
         return self.eventsPerLumi < rhs.eventsPerLumi
 
+    def __le__(self, rhs):
+        """
+        Check whether the run number is equal, then whether every
+        lumi in self is also in rhs (self is a subset of rhs)
+        """
+        if self.run != rhs.run:
+            return False
+        if set(self.eventsPerLumi.keys()) <= set(rhs.eventsPerLumi.keys()):
+            return True
+        return False
+
     def __gt__(self, rhs):
         """
         Compare on run # first, then by lumis as a list is compared
@@ -46,6 +57,17 @@ class Run(WMObject):
         if sorted(self.eventsPerLumi.keys()) != sorted(rhs.eventsPerLumi.keys()):
             return sorted(self.eventsPerLumi.keys()) > sorted(rhs.eventsPerLumi.keys())
         return self.eventsPerLumi > rhs.eventsPerLumi
+
+    def __ge__(self, rhs):
+        """
+        Check whether the run number is equal, then whether every
+        lumi in rhs is also in self (self is a superset of rhs)
+        """
+        if self.run != rhs.run:
+            return False
+        if set(self.eventsPerLumi.keys()) >= set(rhs.eventsPerLumi.keys()):
+            return True
+        return False
 
     def extend(self, items):
         """
