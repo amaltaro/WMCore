@@ -171,6 +171,27 @@ class RunTest(unittest.TestCase):
         s.add(run10)
         s.add(run11)
 
+    def testE(self):
+        """
+        Further comparison tests
+        """
+        run1 = Run(1, 1, 2, 3)
+        run11 = Run(1, 4, 5, 6)
+        run3 = Run(3, 1, 2, 3)
+        run4 = Run(4, 1, 2, 3)
+        self.assertFalse(run1 <= run11)
+        self.assertFalse(run1 >= run11)
+        self.assertFalse(run3 <= run4)
+        self.assertFalse(run3 >= run4)
+
+        run = Run(1, 1, 3)
+        self.assertTrue(run <= run1)
+        self.assertFalse(run >= run1)
+
+        run = Run(3, 6, 5, 4, 3, 2, 1)
+        self.assertFalse(run <= run3)
+        self.assertTrue(run >= run3)
+
 
 if __name__ == '__main__':
     unittest.main()
