@@ -187,7 +187,7 @@ class SetupCMSSWPset(ScriptInterface):
         self.process = None
         self.logger = logging.getLogger()
 
-    def createProcess(self, scenario, funcName, funcArgs):
+    def createProcess(self, scenario, funcName, funcArgs, baggage=None):
         """
         _createProcess_
 
@@ -196,7 +196,6 @@ class SetupCMSSWPset(ScriptInterface):
         """
         if funcName == "merge":
 
-            baggage = self.job.getBaggage()
             if getattr(baggage, "useErrorDataset", False):
                 funcArgs['outputmod_label'] = "MergedError"
 
@@ -298,13 +297,12 @@ class SetupCMSSWPset(ScriptInterface):
         applyTweak(self.process, tweak, self.fixupDict)
         return
 
-    def handleSeeding(self):
+    def handleSeeding(self, baggage=None):
         """
         _handleSeeding_
 
         Handle Random Seed settings for the job
         """
-        baggage = self.job.getBaggage()
         seeding = getattr(baggage, "seeding", None)
         self.logger.info("Job seeding set to: %s", seeding)
         if seeding == "ReproducibleSeeding":
@@ -373,7 +371,7 @@ class SetupCMSSWPset(ScriptInterface):
 
         return
 
-    def handlePileup(self):
+    def handlePileup(self, baggage=None):
         """
         _handlePileup_
 
@@ -401,12 +399,15 @@ class SetupCMSSWPset(ScriptInterface):
 
         # if the user in the configuration specifies different pileup types
         # than "data" or "mc", the following call will not modify anything
-        self._processPileupMixingModules(pileupDict, PhEDExNodeName, dataMixModules, "data")
-        self._processPileupMixingModules(pileupDict, PhEDExNodeName, mixModules, "mc")
+        self._processPileupMixingModules(pileupDict, PhEDExNodeName,
+                                         dataMixModules, "data", baggage)
+        self._processPileupMixingModules(pileupDict, PhEDExNodeName,
+                                         mixModules, "mc", baggage)
 
         return
 
-    def _processPileupMixingModules(self, pileupDict, PhEDExNodeName, modules, requestedPileupType):
+    def _processPileupMixingModules(self, pileupDict, PhEDExNodeName, modules,
+                                    requestedPileupType, baggage):
         """
         Iterates over all modules and over all pileup configuration types.
         The only considered types are "data" and "mc" (input to this method).
@@ -430,8 +431,6 @@ class SetupCMSSWPset(ScriptInterface):
         or "input" attribute, so need to probe both, one shall succeed.
         """
         self.logger.info("Requested pileup type %s with %d mixing modules", requestedPileupType, len(modules))
-
-        baggage = self.job.getBaggage()
 
         for m in modules:
             self.logger.info("Loaded module type: %s", m.type_())
@@ -527,7 +526,7 @@ class SetupCMSSWPset(ScriptInterface):
             if hasattr(producers[producer], "nEvents"):
                 producers[producer].nEvents = self.process.maxEvents.input.value()
 
-    def handleDQMFileSaver(self):
+    def handleDQMFileSaver(self, baggage=None):
         """
         _handleDQMFileSaver_
 
@@ -538,7 +537,6 @@ class SetupCMSSWPset(ScriptInterface):
         if not hasattr(self.process, "dqmSaver"):
             return
 
-        baggage = self.job.getBaggage()
         runIsComplete = getattr(baggage, "runIsComplete", False)
         multiRun = getattr(baggage, "multiRun", False)
         runLimits = getattr(baggage, "runLimits", "")
@@ -558,6 +556,20 @@ class SetupCMSSWPset(ScriptInterface):
                     datasetName[0] += runLimits
                     datasetName = "/".join(datasetName)
                 self.process.dqmSaver.workflow = cms.untracked.string(datasetName)
+        return
+
+    def handleLHEInput(self, baggage=None):
+        """
+        _handleLHEInput_
+
+        Enable lazy-download for jobs reading LHE articles from CERN, such
+        that these jobs can read data remotely
+        """
+        if getattr(baggage, "lheInputFiles", False):
+            self.logger.info("Enabling 'lazy-download' for lheInputFiles job")
+            self.process.add_(cms.Service("SiteLocalConfigService",
+                                          overrideSourceCacheHintDir=cms.untracked.string("lazy-download")))
+
         return
 
     def handleRepackSettings(self):
@@ -647,6 +659,8 @@ class SetupCMSSWPset(ScriptInterface):
         """
         self.process = None
         self.logger.info("Executing SetupCMSSWPSet...")
+        jobBaggage = self.job.getBaggage()
+
 
         scenario = getattr(self.step.data.application.configuration, "scenario", None)
         if scenario is not None and scenario != "":
@@ -657,7 +671,7 @@ class SetupCMSSWPset(ScriptInterface):
             else:
                 funcArgs = {}
             try:
-                self.createProcess(scenario, funcName, funcArgs)
+                self.createProcess(scenario, funcName, funcArgs, jobBaggage)
             except Exception as ex:
                 self.logger.exception("Error creating process for Config/DataProcessing:")
                 raise ex
@@ -731,7 +745,7 @@ class SetupCMSSWPset(ScriptInterface):
         # check for pileup settings presence, pileup support implementation
         # and if enabled, process pileup configuration / settings
         if hasattr(self.step.data, "pileup"):
-            self.handlePileup()
+            self.handlePileup(jobBaggage)
 
         # Apply per output module PSet Tweaks
         cmsswStep = self.step.getTypeHelper()
@@ -745,7 +759,7 @@ class SetupCMSSWPset(ScriptInterface):
             self.process.maxEvents.input = 1
 
         # check for random seeds and the method of seeding which is in the job baggage
-        self.handleSeeding()
+        self.handleSeeding(jobBaggage)
 
         # make sure default parametersets for perf reports are installed
         self.handlePerformanceSettings()
@@ -754,7 +768,10 @@ class SetupCMSSWPset(ScriptInterface):
         self.handleProducersNumberOfEvents()
 
         # fixup the dqmFileSaver
-        self.handleDQMFileSaver()
+        self.handleDQMFileSaver(jobBaggage)
+
+        # tweak for jobs reading LHE articles from CERN
+        self.handleLHEInput(jobBaggage)
 
         # Check if we accept skipping bad files
         if hasattr(self.step.data.application.configuration, "skipBadFiles"):
