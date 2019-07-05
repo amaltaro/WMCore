@@ -86,18 +86,25 @@ def validate_request_create_args(request_args, config, reqmgr_db_service, *args,
         # both create & assign args are accepted for Resubmission creation
         workload, request_args = validate_resubmission_create_args(request_args, config, reqmgr_db_service)
     else:
+        print("AMR initialize_request_args")
         initialize_request_args(request_args, config)
         # check the permission for creating the request
+        print("AMR getWritePermission")
         permission = getWritePermission(request_args)
         authz_match(permission['role'], permission['group'])
 
+        print("AMR loadSpecClassByType")
         # load the correct class in order to validate the arguments
         specClass = loadSpecClassByType(request_args["RequestType"])
         # set default values for the request_args
+        print("AMR setArgumentsWithDefault")
         setArgumentsWithDefault(request_args, specClass.getWorkloadCreateArgs())
         spec = specClass()
+        print("AMR factoryWorkloadConstruction")
         workload = spec.factoryWorkloadConstruction(request_args["RequestName"],
                                                     request_args)
+        print("AMR done")
+
 
     return workload, request_args
 

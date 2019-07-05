@@ -72,7 +72,11 @@ class Request(RESTEntity):
             request_args = json.loads(data)
         else:
             request_args = {}
-        cherrypy.log('Updating request "%s" with these user-provided args: %s' % (requestName, request_args))
+
+        if requestName:
+            cherrypy.log('Updating request "%s" with these user-provided args: %s' % (requestName, request_args))
+        else:
+            cherrypy.log('User-provided args: %s' % request_args)
 
         # In case key args are also passed and request body also exists.
         # If the request.body is dictionary update the key args value as well
@@ -86,6 +90,7 @@ class Request(RESTEntity):
 
         safe.kwargs['workload_pair_list'] = []
         for args in request_args:
+            cherrypy.log('AMR going to call validate function ...')
             workload, r_args = valFunc(args, self.config, self.reqmgr_db_service, param)
             safe.kwargs['workload_pair_list'].append((workload, r_args))
 

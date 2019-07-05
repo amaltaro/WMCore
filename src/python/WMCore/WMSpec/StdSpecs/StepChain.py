@@ -14,6 +14,7 @@ to be staged out and registered in DBS/PhEDEx. Only the last step output will be
 made available.
 """
 from Utils.Utilities import strToBool
+import time
 import WMCore.WMSpec.Steps.StepFactory as StepFactory
 from WMCore.Lexicon import primdataset, taskStepName
 from WMCore.WMSpec.StdSpecs.StdBase import StdBase
@@ -591,6 +592,7 @@ class StepChainWorkloadFactory(StdBase):
         Validate the step information against the given
         argument description
         """
+        print("AMR %s validateStep start" % time.asctime())
         try:
             validateArgumentsCreate(taskConf, taskArgumentDefinition, checkInputDset=False)
         except WMSpecFactoryException:
@@ -598,5 +600,6 @@ class StepChainWorkloadFactory(StdBase):
             raise
         except Exception as ex:
             self.raiseValidationException(str(ex))
+        print("AMR %s validateStep end" % time.asctime())
 
         return

@@ -84,6 +84,7 @@ Example initial processing task
  },
 """
 from __future__ import division
+import time
 from Utils.Utilities import makeList, strToBool
 from WMCore.Lexicon import primdataset, taskStepName
 from WMCore.WMSpec.StdSpecs.StdBase import StdBase
@@ -721,6 +722,7 @@ class TaskChainWorkloadFactory(StdBase):
         Validate the task information against the given
         argument description
         """
+        print("AMR %s validateTask start" % time.asctime())
         try:
             validateArgumentsCreate(taskConf, taskArgumentDefinition, checkInputDset=False)
         except WMSpecFactoryException:
@@ -728,5 +730,6 @@ class TaskChainWorkloadFactory(StdBase):
             raise
         except Exception as ex:
             self.raiseValidationException(str(ex))
+        print("AMR %s validateTask end" % time.asctime())
 
         return

@@ -6,7 +6,7 @@ Base class with helper functions for standard WMSpec files.
 """
 from __future__ import division
 import logging
-
+import time
 from Utils.Utilities import makeList, makeNonEmptyList, strToBool, safeStr
 from WMCore.Cache.WMConfigCache import ConfigCache, ConfigCacheException
 from WMCore.Configuration import ConfigSection
@@ -910,11 +910,16 @@ class StdBase(object):
         if arguments.get('RequestType') == 'Resubmission':
             self.validateSchema(schema=arguments)
         else:
+            print("AMR %s factoryWorkloadConstruction masterValidation" % time.asctime())
             self.masterValidation(schema=arguments)
+            print("AMR %s factoryWorkloadConstruction validateSchema" % time.asctime())
             self.validateSchema(schema=arguments)
 
+        print("AMR %s factoryWorkloadConstruction __call__" % time.asctime())
         workload = self.__call__(workloadName=workloadName, arguments=arguments)
+        print("AMR %s factoryWorkloadConstruction validateWorkload" % time.asctime())
         self.validateWorkload(workload)
+        print("AMR %s done" % time.asctime())
 
         return workload
 
