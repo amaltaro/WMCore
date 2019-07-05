@@ -284,7 +284,9 @@ class TaskChainWorkloadFactory(StdBase):
         self.workload.setTaskParentageMapping(self.taskOutputMapping)
 
         self.workload.ignoreOutputModules(self.ignoredOutputModules)
+        print("AMR %s reporting to dashboard" % time.asctime())
         self.reportWorkflowToDashboard(self.workload.getDashboardActivity())
+        print("AMR %s reporting to dashboard completed" % time.asctime())
         # and push the parentage map to the reqmgr2 workload cache doc
         arguments['ChainParentageMap'] = self.workload.getChainParentageSimpleMapping()
 

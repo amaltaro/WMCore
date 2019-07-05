@@ -108,7 +108,9 @@ class StepChainWorkloadFactory(StdBase):
 
         self.workload.setStepMapping(self.stepMapping)
         self.workload.setStepParentageMapping(self.stepParentageMapping)
+        print("AMR %s reporting to dashboard" % time.asctime())
         self.reportWorkflowToDashboard(self.workload.getDashboardActivity())
+        print("AMR %s reporting to dashboard completed" % time.asctime())
         # and push the parentage map to the reqmgr2 workload cache doc
         arguments['ChainParentageMap'] = self.workload.getChainParentageSimpleMapping()
 
