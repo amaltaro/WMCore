@@ -18,7 +18,6 @@ from WMCore.MicroService.Unified.Common import elapsedTime, \
     eventsLumisInfo, getComputingTime, \
     getNCopies, teraBytes, getIO
 from WMCore.MicroService.Unified.MSCore import MSCore
-from WMCore.MicroService.Unified.SiteInfo import SiteInfo
 from WMCore.Services.pycurl_manager import getdata \
     as multi_getdata, RequestHandler
 
@@ -122,7 +121,7 @@ class RequestInfo(MSCore):
         winfo = workflowsInfo(rawData)
         datasets = [d for row in winfo.values() for d in row['datasets']]
 
-        # find dataset info
+        # given dataset names, find blocks and blocks size
         time0 = time.time()
         datasetBlocks, datasetSizes = dbsInfo(datasets, self.msConfig['dbsUrl'])
         self.logger.debug(elapsedTime(time0, "### dbsInfo"))
@@ -138,11 +137,10 @@ class RequestInfo(MSCore):
         self.logger.debug(elapsedTime(time0, "### eventsLumisInfo"))
 
         # get specs for all requests and re-use them later in getSiteWhiteList as cache
+        time0 = time.time()
         requests = [r['name'] for r in reqRecords]
         reqSpecs = self._getRequestSpecs(requests)
-
-        # get siteInfo instance once and re-use it later, it is time-consumed object
-        siteInfo = SiteInfo(self.uConfig)
+        self.logger.debug(elapsedTime(time0, "### getRequestSpecs"))
 
         requestsToProcess = []
         tst0 = time.time()
@@ -179,8 +177,7 @@ class RequestInfo(MSCore):
                     ndatasets, nblocks, size, teraBytes(size), nevts, nlumis, cput, ncopies, sites)
             # find out which site can serve given workflow request
             t0 = time.time()
-            lheInput, primary, parent, secondary, allowedSites \
-                = self._getSiteWhiteList(wspec, siteInfo, reqSpecs)
+            lheInput, primary, parent, secondary, allowedSites = self._getSiteWhiteList(wspec)
             if not isinstance(primary, list):
                 primary = [primary]
             if not isinstance(secondary, list):
@@ -233,74 +230,13 @@ class RequestInfo(MSCore):
             rdict[req] = pickle.loads(row['data'])
         return rdict
 
-    def _getSiteWhiteList(self, request, siteInfo, reqSpecs=None, pickone=False):
+    def _getSiteWhiteList(self, request):
         "Return site list for given request"
         lheinput, primary, parent, secondary = getIO(request, self.msConfig['dbsUrl'])
-        allowedSites = []
-        if lheinput:
-            allowedSites = sorted(siteInfo.sites_eos)
-        elif secondary:
-            if self.heavyRead(request):
-                allowedSites = sorted(set(siteInfo.sites_T1s + siteInfo.sites_with_goodIO))
-            else:
-                allowedSites = sorted(set(siteInfo.sites_T1s + siteInfo.sites_with_goodAAA))
-        elif primary:
-            allowedSites = sorted(set(siteInfo.sites_T1s + siteInfo.sites_T2s + siteInfo.sites_T3s))
-        else:
-            # no input at all all site should contribute
-            allowedSites = sorted(set(siteInfo.sites_T2s + siteInfo.sites_T1s + siteInfo.sites_T3s))
-        if pickone:
-            allowedSites = sorted([siteInfo.pick_CE(allowedSites)])
+        allowedSites = request['SiteWhitelist']
 
-        # do further restrictions based on memory
-        # do further restrictions based on blow-up factor
-        minChildJobPerEvent, rootJobPerEvent, blowUp = self._getBlowupFactors(request, reqSpecs=reqSpecs)
-        maxBlowUp, neededCores = self.uConfig.get('blow_up_limits', (0, 0))
-        if blowUp > maxBlowUp:
-            # then restrict to only sites with >4k slots
-            siteCores = [site for site in allowedSites
-                         if siteInfo.cpu_pledges[site] > neededCores]
-            newAllowedSites = list(set(allowedSites) & set(siteCores))
-            if newAllowedSites:
-                allowedSites = newAllowedSites
-                msg = "restricting site white list because of blow-up factor: "
-                msg += 'minChildJobPerEvent=%s ' % minChildJobPerEvent
-                msg += 'rootJobPerEvent=%s' % rootJobPerEvent
-                msg += 'maxBlowUp=%s' % maxBlowUp
-                self.logger.debug(msg)
-
-        for campaign in self.getCampaigns(request):
-            # for testing purposes add post campaign call
-            # res = reqmgrAux.postCampaignConfig(campaign, {'%s_name' % campaign: {"Key1": "Value1"}})
-            campaignConfig = self.reqmgrAux.getCampaignConfig(campaign)
-            if isinstance(campaignConfig, list):
-                campaignConfig = campaignConfig[0]
-            campSites = campaignConfig.get('SiteWhitelist', [])
-            if campSites:
-                msg = "Using site whitelist restriction by campaign=%s " % campaign
-                msg += "configuration=%s" % sorted(campSites)
-                self.logger.debug(msg)
-                allowedSites = list(set(allowedSites) & set(campSites))
-                if not allowedSites:
-                    allowedSites = list(campSites)
-
-            campBlackList = campaignConfig.get('SiteBlacklist', [])
-            if campBlackList:
-                self.logger.debug("Reducing the whitelist due to black list in campaign configuration")
-                self.logger.debug("Removing %s", campBlackList)
-                allowedSites = list(set(allowedSites) - set(campBlackList))
-
-        ncores = self.getMulticore(request)
-        memAllowed = siteInfo.sitesByMemory(float(request['Memory']), maxCore=ncores)
-        if memAllowed is not None:
-            msg = "sites allowing %s " % request['Memory']
-            msg += "MB and ncores=%s" % ncores
-            msg += "core are %s" % sorted(memAllowed)
-            self.logger.debug(msg)
-            # mask to sites ready for mcore
-            if ncores > 1:
-                memAllowed = list(set(memAllowed) & set(siteInfo.sites_mcore_ready))
-            allowedSites = list(set(allowedSites) & set(memAllowed))
+        # TODO: removed a bunch of code that apparently only matters for workflow assignment.
+        # Data placement is simply following what has been already decided for SiteWhitelist
         return lheinput, list(primary), list(parent), list(secondary), list(sorted(allowedSites))
 
     def _getBlowupFactors(self, request, reqSpecs=None):

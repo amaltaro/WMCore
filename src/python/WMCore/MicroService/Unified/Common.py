@@ -45,6 +45,13 @@ def getMSLogger(verbose, logger=None):
 
 
 def dbsInfo(datasets, dbsUrl):
+    """
+    Provided a list of dataset names, query DBS for the respective
+    block names and block sizes
+    :param datasets: list of primary datasets
+    :param dbsUrl: DBS URL string
+    :return: two dicts with dataset information
+    """
     "Provides DBS info about dataset blocks"
     urls = ['%s/blocks?detail=True&dataset=%s' % (dbsUrl, d) for d in datasets]
     data = multi_getdata(urls, ckey(), cert())
@@ -177,6 +184,7 @@ def getComputingTime(workflow, eventsLumis=None, unit='h', dbsUrl=None, logger=N
     logger = getMSLogger(verbose=True, logger=logger)
     cput = None
 
+    # FIXME: it has to account for RunWhitelist/RunBlacklist and LumiList
     if 'InputDataset' in workflow:
         dataset = workflow['InputDataset']
         if 'BlockWhitelist' in workflow and workflow['BlockWhitelist']:
