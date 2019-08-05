@@ -32,6 +32,7 @@ class MSTransferor(MSCore):
         """
         super(MSTransferor, self).__init__(msConfig, logger)
         self.reqInfo = RequestInfo(msConfig, logger)
+        self.inputType = {'InputDataset', 'MCPileup', 'DataPileup'}
 
     def execute(self, reqStatus):
         """
@@ -39,23 +40,24 @@ class MSTransferor(MSCore):
         :param reqStatus: request status to process
         :return:
         """
-        requestRecords = []
         try:
             # get requests from ReqMgr2 data-service for given statue
-            requestSpecs = self.reqmgr2.getRequestByStatus(
-                [reqStatus], detail=True)
+            requestSpecs = self.reqmgr2.getRequestByStatus([reqStatus], detail=True)
             if requestSpecs:
-                for _, wfData in requestSpecs[0].items():
-                    requestRecords.append(self.requestRecord(wfData))
-            self.logger.debug(
-                '### transferor found %s requests in %s state',
-                len(requestRecords), reqStatus)
+                requestSpecs = requestSpecs[0].values()
         except Exception as err:  # general error
             self.logger.exception('### transferor error: %s', str(err))
 
+        self.logger.info('Found %d requests in "%s" status', len(requestSpecs), reqStatus)
+        # couple of checks before we proceed with the heavy operation
+        if not requestSpecs:
+            return
+        elif not self.reqInfo.cycleSetup():
+            return
+
         # process all requests
-        requestStatuses = {}
-        for reqSlice in grouper(requestRecords, 50):
+        for reqSlice in grouper(requestSpecs, 50):
+            requestStatuses = {}
             # get complete requests information
             # based on Unified Transferor logic
             reqResults = self.reqInfo(reqSlice)
@@ -84,36 +86,8 @@ class MSTransferor(MSCore):
                         statusRecord = {'timestamp': time.time(), 'dataset': dataset,
                                         'dataType': ctype, 'transferIDs': tids}
                         requestStatuses.setdefault(wname, []).append(statusRecord)
-
-        # update/insert requestStatues in couchdb
-        self.updateTransferInfo(requestStatuses)
-
-    def requestRecord(self, wfData):
-        """
-        Selects only important information for a request dictionary
-
-        Returns: a dictionary
-        """
-        datasets = []
-        if "TaskChain" in wfData or "StepChain" in wfData:
-            innerDicts = []
-            for i in range(1, wfData.get("TaskChain", wfData.get("StepChain")) + 1):
-                innerDicts.append(wfData.get("Task%d" % i, wfData.get("Step%d" % i)))
-        else:
-            # ReReco and DQMHarvesting
-            innerDicts = [wfData]
-        for item in innerDicts:
-            for key in ['InputDataset', 'MCPileup', 'DataPileup']:
-                dataset = item.get(key)
-                if dataset:
-                    datasets.append({'type': key, 'name': dataset})
-
-        return {'name': wfData.get('RequestName'),
-                'reqStatus': wfData.get('RequestStatus'),
-                'SiteWhiteList': wfData.get('SiteWhitelist', []),
-                'SiteBlackList': wfData.get('SiteBlacklist', []),
-                'datasets': datasets,
-                'campaign': []}
+            # update/insert requestStatues in couchdb
+            self.updateTransferInfo(requestStatuses)
 
     def transferRequest(self, req):
         """

@@ -25,10 +25,6 @@ from WMCore.Services.pycurl_manager import getdata as multi_getdata
 # from future import standard_library
 # standard_library.install_aliases()
 
-# static variables
-STEP_PAT = re.compile(r'Step[0-9]')
-TASK_PAT = re.compile(r'Task[0-9]')
-
 
 def getMSLogger(verbose, logger=None):
     """
@@ -96,37 +92,40 @@ def getWorkflow(requestName, reqMgrUrl):
     return data.get('result', [])
 
 
-def workflowsInfo(workflows):
+def workflowsInfo(workflowsData):
+    """
+    Given a list of workflow dictionary, parse it and extract of subset
+    of important information
+    :param workflowsData: list of dictionaries
+    :return: dictionary key'ed by the request name with a small dict structure
+    """
     "Return minimum info about workflows in flat format"
     winfo = {}
-    for wflow in workflows:
-        for key, val in wflow.iteritems():
-            datasets = set()
-            pileups = set()
-            selist = []
-            priority = 0
-            campaign = ''
-            for kkk, vvv in val.iteritems():
-                if STEP_PAT.match(kkk) or TASK_PAT.match(kkk):
-                    dataset = vvv.get('InputDataset', '')
-                    pileup = vvv.get('MCPileup', '')
-                    if dataset:
-                        datasets.add(dataset)
-                    if pileup:
-                        pileups.add(pileup)
-                if kkk == 'SiteWhiteList':
-                    selist = vvv
-                if kkk == 'RequestPriority':
-                    priority = vvv
-                if kkk == 'Campaign':
-                    campaign = vvv
-                if kkk == 'InputDataset':
-                    datasets.add(vvv)
-                if kkk == 'MCPileup':
-                    pileups.add(vvv)
-            winfo[key] = \
-                dict(datasets=list(datasets), pileups=list(pileups), \
-                     priority=priority, selist=selist, campaign=campaign)
+    for wflow in workflowsData:
+        datasets = set()
+        pileups = set()
+        reqName = wflow['RequestName']
+        if "TaskChain" in wflow or "StepChain" in wflow:
+            innerDicts = []
+            for i in range(1, wflow.get("TaskChain", wflow.get("StepChain")) + 1):
+                innerDicts.append(wflow.get("Task%d" % i, wflow.get("Step%d" % i)))
+        else:
+            # ReReco and DQMHarvesting
+            innerDicts = [wflow]
+
+        for item in innerDicts:
+            if item.get("InputDataset"):
+                datasets.add(item.get("InputDataset"))
+            if item.get("MCPileup"):
+                pileups.add(item.get("MCPileup"))
+            if item.get("DataPileup"):
+                pileups.add(item.get("DataPileup"))
+
+        winfo[reqName] = dict(priority=wflow.get('RequestPriority', 0),
+                              selist=wflow.get('SiteWhiteList', []),
+                              campaign=wflow['Campaign'],  # original Unified logic uses only the top level value
+                              datasets=list(datasets),
+                              pileups=list(pileups))
     return winfo
 
 
