@@ -1,5 +1,5 @@
 from __future__ import division, print_function
-
+from memory_profiler import profile
 from Utils.IteratorTools import nestedDictUpdate
 from WMCore.Database.CMSCouch import CouchServer
 from WMCore.Lexicon import splitCouchServiceURL, sanitizeURL
@@ -274,13 +274,14 @@ class WMStatsReader(object):
         return requestInfo
 
     def getActiveData(self, jobInfoFlag=False):
-
-        return self.getRequestByStatus(ACTIVE_STATUS, jobInfoFlag)
+        statuses = ["running-open", "completed"]
+        return self.getRequestByStatus(statuses, jobInfoFlag)
 
     def getT0ActiveData(self, jobInfoFlag=False):
 
         return self.getRequestByStatus(T0_ACTIVE_STATUS, jobInfoFlag)
 
+    @profile
     def getRequestByStatus(self, statusList, jobInfoFlag=False, limit=None, skip=None,
                            legacyFormat=False):
 

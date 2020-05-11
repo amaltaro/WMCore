@@ -8,6 +8,7 @@ import time
 from collections import namedtuple
 from functools import wraps
 from threading import Thread, Condition
+from memory_profiler import profile
 
 from cherrypy import engine, expose, request, response, HTTPError, HTTPRedirect, tools
 from cherrypy.lib import cpstats
@@ -651,6 +652,7 @@ class MiniRESTApi:
         self.default_expires = 3600
         self.default_expires_opts = []
 
+    @profile
     def _addAPI(self, method, api, callable, args, validation, **kwargs):
         """Add an API method.
 
@@ -2378,7 +2380,7 @@ def restcall(func=None, args=None, generate="result", **kwargs):
 
     return (func and apply_restcall_opts(func)) or apply_restcall_opts
 
-
+@profile
 def rows(cursor):
     """Utility function to convert a sequence `cursor` to a generator."""
     for row in cursor:

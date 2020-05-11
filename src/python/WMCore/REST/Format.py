@@ -6,6 +6,7 @@ import types
 import xml.sax.saxutils
 import zlib
 from traceback import format_exc
+from memory_profiler import profile
 
 import cherrypy
 
@@ -261,6 +262,7 @@ class JSONFormat(RESTFormat):
             etag.invalidate()
             report_rest_error(ExecutionError(), format_exc(), False)
 
+    @profile
     def chunk_args(self, stream):
         """Return header and trailer needed to wrap `stream` as JSON reply."""
         comma = ""
@@ -532,6 +534,7 @@ def _etag_tail(head, tail, etag):
     if etagval:
         cherrypy.response.headers["ETag"] = etagval
 
+@profile
 def stream_maybe_etag(size_limit, etag, reply):
     """Maybe generate ETag header for the response, and handle If-Match
     and If-None-Match request headers. Consumes the reply until at most

@@ -3,6 +3,8 @@ Gets the cache data from server cache. This shouldn't update the server cache.
 Just wait for the server cache to be updated
 """
 from __future__ import (division, print_function)
+from memory_profiler import profile
+
 from WMCore.REST.Server import RESTEntity, restcall, rows
 from WMCore.REST.Tools import tools
 from WMCore.REST.Error import DataCacheEmpty
@@ -25,10 +27,13 @@ class ActiveRequestJobInfo(RESTEntity):
 
     @restcall(formats=[('text/plain', PrettyJSONFormat()), ('application/json', JSONFormat())])
     @tools.expires(secs=-1)
+    @profile
     def get(self):
         # This assumes DataCahe is periodically updated.
         # If data is not updated, need to check, dataCacheUpdate log
-        return rows([DataCache.getlatestJobData()])
+        DataCache.summary()
+        print("DataCache contains {} documents".format(len(DataCache.getlatestJobData())))
+        return DataCache.getlatestJobData()
 
 
 class FilteredActiveRequestJobInfo(RESTEntity):
@@ -52,6 +57,7 @@ class FilteredActiveRequestJobInfo(RESTEntity):
 
     @restcall(formats=[('text/plain', PrettyJSONFormat()), ('application/json', JSONFormat())])
     @tools.expires(secs=-1)
+    @profile
     def get(self, mask=None, **input_condition):
         # This assumes DataCahe is periodically updated.
         # If data is not updated, need to check, dataCacheUpdate log
@@ -97,6 +103,7 @@ class ProtectedLFNListOnlyFinalOutput(RESTEntity):
 
     @restcall(formats=[('text/plain', PrettyJSONFormat()), ('application/json', JSONFormat())])
     @tools.expires(secs=-1)
+    @profile
     def get(self):
         # This assumes DataCahe is periodically updated.
         # If data is not updated, need to check, dataCacheUpdate log
@@ -113,11 +120,14 @@ class GlobalLockList(RESTEntity):
 
     @restcall(formats=[('text/plain', PrettyJSONFormat()), ('application/json', JSONFormat())])
     @tools.expires(secs=-1)
+    @profile
     def get(self):
         # This assumes DataCahe is periodically updated.
         # If data is not updated, need to check, dataCacheUpdate log
         if DataCache.isEmpty():
             raise DataCacheEmpty()
         else:
+            DataCache.summary()
+            print("DataCache contains {} documents".format(len(DataCache.getlatestJobData())))
             return rows(DataCache.filterData(ACTIVE_STATUS_FILTER,
                                              ["InputDataset", "OutputDatasets", "MCPileup", "DataPileup"]))

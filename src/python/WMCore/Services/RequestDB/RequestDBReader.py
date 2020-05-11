@@ -1,4 +1,5 @@
 import time
+from memory_profiler import profile
 
 from WMCore.Database.CMSCouch import CouchServer, Database
 from WMCore.Lexicon import splitCouchServiceURL, sanitizeURL
@@ -51,10 +52,11 @@ class RequestDBReader(object):
     def _filterCouchInfo(self, couchInfo):
         # remove the couch specific information
         for key in ['_rev', '_attachments']:
-            if key in couchInfo:
-                del couchInfo[key]
+            couchInfo.pop(key, None)
+
         return
 
+    @profile
     def _formatCouchData(self, data, key="id", detail=True, filterCouch=True, returnDict=False):
         result = {}
         for row in data['rows']:
@@ -70,6 +72,23 @@ class RequestDBReader(object):
             return result
         else:
             return result.keys()
+
+    @profile
+    def _formatCouchDataList(self, data, key="id", detail=True, filterCouch=True, returnList=True):
+        if not returnList:
+            result = self._formatCouchData(data, key, detail, filterCouch, returnDict=True)
+            return result
+        resultList = []
+        for row in data['rows']:
+            if 'error' in row:
+                continue
+            if "doc" in row:
+                if filterCouch:
+                    self._filterCouchInfo(row["doc"])
+                resultList = row["doc"]
+            else:
+                resultList = row["value"]
+        return resultList
 
     def _getRequestByName(self, requestName, detail):
         result = self.couchDB.getDoc(requestName)
@@ -172,10 +191,14 @@ class RequestDBReader(object):
             requestInfo = self._formatCouchData(requestInfo, detail=detail)
         return requestInfo
 
+    @profile
     def getRequestByStatus(self, statusList, detail=False, limit=None, skip=None):
 
         data = self._getRequestByStatus(statusList, detail, limit, skip)
-        requestInfo = self._formatCouchData(data, detail=detail)
+        if detail:
+            requestInfo = self._formatCouchDataList(data, detail=detail)
+        else:
+            requestInfo = self._formatCouchData(data, detail=detail)
 
         return requestInfo
 
