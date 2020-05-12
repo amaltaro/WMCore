@@ -8,6 +8,7 @@ import time
 from collections import namedtuple
 from functools import wraps
 from threading import Thread, Condition
+from memory_profiler import profile
 
 from cherrypy import engine, expose, request, response, HTTPError, HTTPRedirect, tools
 from cherrypy.lib import cpstats
@@ -2378,7 +2379,7 @@ def restcall(func=None, args=None, generate="result", **kwargs):
 
     return (func and apply_restcall_opts(func)) or apply_restcall_opts
 
-
+@profile
 def rows(cursor):
     """Utility function to convert a sequence `cursor` to a generator."""
     for row in cursor:

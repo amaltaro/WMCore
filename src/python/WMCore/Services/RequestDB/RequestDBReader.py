@@ -1,4 +1,5 @@
 import time
+from memory_profiler import profile
 
 from WMCore.Database.CMSCouch import CouchServer, Database
 from WMCore.Lexicon import splitCouchServiceURL, sanitizeURL
@@ -51,8 +52,7 @@ class RequestDBReader(object):
     def _filterCouchInfo(self, couchInfo):
         # remove the couch specific information
         for key in ['_rev', '_attachments']:
-            if key in couchInfo:
-                del couchInfo[key]
+            couchInfo.pop(key, None)
         return
 
     def _formatCouchData(self, data, key="id", detail=True, filterCouch=True, returnDict=False):
@@ -172,6 +172,7 @@ class RequestDBReader(object):
             requestInfo = self._formatCouchData(requestInfo, detail=detail)
         return requestInfo
 
+    @profile
     def getRequestByStatus(self, statusList, detail=False, limit=None, skip=None):
 
         data = self._getRequestByStatus(statusList, detail, limit, skip)
