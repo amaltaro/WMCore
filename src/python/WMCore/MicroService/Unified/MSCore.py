@@ -6,7 +6,6 @@ Description: MSCore class provides core functionality of the MS.
 # futures
 from __future__ import division, print_function
 
-from Utils.Utilities import usingRucio
 from WMCore.MicroService.Unified.Common import getMSLogger
 from WMCore.Services.ReqMgr.ReqMgr import ReqMgr
 from WMCore.Services.ReqMgrAux.ReqMgrAux import ReqMgrAux
@@ -36,16 +35,17 @@ class MSCore(object):
                                    httpDict={'cacheduration': 1.0},
                                    logger=self.logger)
 
-        # hard code it to production DBS otherwise PhEDEx subscribe API fails to match TMDB data
-        dbsUrl = "https://cmsweb.cern.ch/dbs/prod/global/DBSReader"
-        if usingRucio():
-            # FIXME: we cannot use Rucio in write mode yet
-            # self.rucio = Rucio(self.msConfig['rucioAccount'], configDict={"logger": self.logger})
-            self.phedex = PhEDEx(httpDict={'cacheduration': 0.5},
-                                 dbsUrl=dbsUrl, logger=self.logger)
+        self.phedex = None
+        self.rucio = None
+        if self.msConfig.get('useRucio', False):
+            self.rucio = Rucio(acct=self.msConfig['rucioAccount'],
+                               hostUrl=self.msConfig['rucioUrl'],
+                               authUrl=self.msConfig['rucioAuthUrl'],
+                               configDict={"logger": self.logger, "user_agent": "wmcore-microservices"})
         else:
-            self.phedex = PhEDEx(httpDict={'cacheduration': 0.5},
-                                 dbsUrl=dbsUrl, logger=self.logger)
+            # hard code it to production DBS otherwise PhEDEx subscribe API fails to match TMDB data
+            dbsUrl = "https://cmsweb.cern.ch/dbs/prod/global/DBSReader"
+            self.phedex = PhEDEx(httpDict={'cacheduration': 0.5}, dbsUrl=dbsUrl, logger=self.logger)
 
     def unifiedConfig(self):
         """

@@ -5,7 +5,7 @@ Test case for Rucio WMCore Service class
 from __future__ import print_function, division, absolute_import
 
 import os
-
+from pprint import pprint
 from rucio.client import Client as testClient
 
 from WMCore.Services.Rucio.Rucio import Rucio, validateMetaData, RUCIO_VALID_PROJECT
@@ -282,3 +282,25 @@ class RucioTest(EmulatedUnitTestCase):
         # now an invalid "project" meta data
         response = validateMetaData("any_DID_name", dict(project="mistake"), self.myRucio.logger)
         self.assertFalse(response)
+
+    def testListBlockNamesAndSizes(self):
+        """
+        Test the `listBlockNamesAndSizes` method
+        """
+        # Wrong container name returns an empty list
+        res = self.myRucio.listBlockNamesAndSizes(container="invalid_container")
+        self.assertItemsEqual(res, [])
+
+        res = self.myRucio.listBlockNamesAndSizes(container=DSET)
+        self.assertTrue(len(res) > 100)
+        self.assertItemsEqual(res[0].keys(), ["name", "bytes"])
+        self.assertTrue(res[0]["bytes"] > 0)
+
+    def testPickRSE(self):
+        """
+        Test the `pickRSE` method
+        """
+        resp = self.myRucio.pickRSE(rseExpression="rse_type=TAPE", rseAttribute="tier")
+        print(resp)
+        self.assertTrue(len(resp) == 2)
+        self.assertTrue(resp[0].endswith("_Test"))
