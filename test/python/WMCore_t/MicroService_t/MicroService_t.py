@@ -58,7 +58,7 @@ class MicroServiceTest(unittest.TestCase):
     def tearDown(self):
         "Tear down MicroService"
         cherrypy.engine.stop()
-        cherrypy.engine.exit()
+        #cherrypy.engine.exit()
 
     def postRequest(self, apiName, params):
         "Perform POST request to our MicroService"
@@ -70,7 +70,7 @@ class MicroServiceTest(unittest.TestCase):
         return data
 
     def testGetStatus(self):
-        "Test function for getting state of the MicroService"
+        "Test function for getting status of the MicroService"
         api = "status"
         url = '%s/%s' % (self.url, api)
         params = {}
@@ -84,7 +84,7 @@ class MicroServiceTest(unittest.TestCase):
         self.assertEqual(data['result'][0]['api'], api)
 
     def testGetInfo(self):
-        "Test function for getting state of the MicroService"
+        "Test function for getting info of the MicroService"
         api = "status"
         url = '%s/%s' % (self.url, api)
         params = {}
@@ -98,7 +98,7 @@ class MicroServiceTest(unittest.TestCase):
         self.assertEqual(data['result'][0]['api'], api)
 
     def testPostCall(self):
-        "Test function for getting state of the MicroService"
+        "Test function for getting status of a request from the MicroService"
         api = "status"
         data = {"request": "fake_request_name"}
         data = self.postRequest(api, data)
