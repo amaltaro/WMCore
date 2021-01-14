@@ -7,7 +7,7 @@ Author: Valentin Kuznetsov <vkuznet [AT] gmail [DOT] com>
 from __future__ import division, print_function
 
 import unittest
-
+import time
 import cherrypy
 from WMCore_t.MicroService_t import TestConfig
 from WMCore.MicroService.Service.RestApiHub import RestApiHub
@@ -53,12 +53,16 @@ class MicroServiceTest(unittest.TestCase):
         self.app = ServiceManager(config)
         self.server = RestApiHub(self.app, config, mount)
         cherrypy.tree.mount(self.server, mount)
+        print("AMR: going to start cherrypy engine")
         cherrypy.engine.start()
 
     def tearDown(self):
         "Tear down MicroService"
+        time.sleep(5)
+        print("AMR: going to stop cherrypy engine")
         cherrypy.engine.stop()
-        #cherrypy.engine.exit()
+        print("AMR: going to exit cherrypy engine")
+        cherrypy.engine.exit()
 
     def postRequest(self, apiName, params):
         "Perform POST request to our MicroService"
