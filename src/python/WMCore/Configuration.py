@@ -13,6 +13,7 @@ import imp
 import os
 import sys
 import traceback
+import logging
 
 from Utils.Utilities import encodeUnicodeToBytes
 
@@ -139,10 +140,14 @@ class ConfigSection(object):
             object.__setattr__(self, name, value)
             return
 
+        print("AMR value before: {} and type: {}".format(value, type(value)))
+        logging.info("AMR log value before: %s and type: %s", value, type(value))
         if isinstance(value, unicode):
             # We should not use "ignore" in this case
             # if this failed before, it is better to have it fail also now.
             value = encodeUnicodeToBytes(value)
+            print("AMR value after: {} and type: {}".format(value, type(value)))
+            logging.info("AMR log value after: %s and type: %s", value, type(value))
 
         # for backward compatibility use getattr and sure to work if the
         # _internal_skipChecks flag is not set
