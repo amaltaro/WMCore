@@ -303,6 +303,7 @@ def perfRepHandler(targets):
     handle performance report subsections
 
     """
+    logging.info("AMR in perfRepHandler routine")
     while True:
         report, node = (yield)
         perfRep = report.report.performance
@@ -312,6 +313,7 @@ def perfRepHandler(targets):
         perfRep.section_("storage")
         for subnode in node.children:
             metric = subnode.attrs.get('Metric', None)
+            logging.info("AMR metric %s, subnode %s", metric, subnode)
             if metric == "Timing":
                 targets['CPU'].send((perfRep.cpu, subnode))
             elif metric == "SystemMemory" or metric == "ApplicationMemory":
@@ -354,9 +356,11 @@ def perfCPUHandler():
     sink that packs CPU reports into the job report
 
     """
+    logging.info("AMR in perfCPUHandler routine")
     while True:
         report, node = (yield)
         for subnode in node.children:
+            logging.info("AMR subnode %s, Name %s, Value %s", subnode, subnode.attrs['Name'], subnode.attrs['Value'])
             setattr(report, subnode.attrs['Name'], subnode.attrs['Value'])
 
 

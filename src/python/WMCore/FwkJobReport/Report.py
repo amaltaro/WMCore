@@ -144,6 +144,7 @@ class Report(object):
         """
         from WMCore.FwkJobReport.XMLParser import xmlToJobReport
         try:
+            logging.info("AMR parsing xmlfile %s, stepName %s", xmlfile, stepName)
             xmlToJobReport(self, xmlfile)
         except Exception as ex:
             msg = "Error reading XML job report file, possibly corrupt XML File:\n"
