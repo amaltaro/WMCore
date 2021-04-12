@@ -140,13 +140,13 @@ class ConfigSection(object):
             object.__setattr__(self, name, value)
             return
 
-        print("AMR value before: {} and type: {}".format(value, type(value)))
         logging.info("AMR log value before: %s and type: %s", value, type(value))
-        if isinstance(value, unicode):
+        if isinstance(value, (unicode, str, bytes)) and hasattr(value, "encode"):
             # We should not use "ignore" in this case
             # if this failed before, it is better to have it fail also now.
-            value = encodeUnicodeToBytes(value)
-            print("AMR value after: {} and type: {}".format(value, type(value)))
+            ### FIXME: might break in python3, for now, make sure there are no byte
+            # strings in the format of b"blah", but only "blah"
+            value = value.encode("utf-8", errors="strict")
             logging.info("AMR log value after: %s and type: %s", value, type(value))
 
         # for backward compatibility use getattr and sure to work if the
