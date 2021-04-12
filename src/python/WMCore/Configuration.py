@@ -15,7 +15,7 @@ import sys
 import traceback
 import logging
 
-from Utils.Utilities import encodeUnicodeToBytes
+from Utils.Utilities import decodeBytesToUnicode
 
 PY3 = sys.version_info[0] == 3
 
@@ -141,12 +141,12 @@ class ConfigSection(object):
             return
 
         logging.info("AMR log value before: %s and type: %s", value, type(value))
-        if isinstance(value, (unicode, str, bytes)) and hasattr(value, "encode"):
+        if isinstance(value, (str, bytes)):
             # We should not use "ignore" in this case
             # if this failed before, it is better to have it fail also now.
-            ### FIXME: might break in python3, for now, make sure there are no byte
+            ### FIXME: might break in python3, for now, make sure there are no bytes
             # strings in the format of b"blah", but only "blah"
-            value = value.encode("utf-8", errors="strict")
+            value = decodeBytesToUnicode(value)
             logging.info("AMR log value after: %s and type: %s", value, type(value))
 
         # for backward compatibility use getattr and sure to work if the
