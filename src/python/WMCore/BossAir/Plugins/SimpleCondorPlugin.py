@@ -16,6 +16,7 @@ import htcondor
 
 from Utils import FileTools
 from Utils.IteratorTools import grouper
+from Utils.Utilities import encodeUnicodeToBytes
 from WMCore.BossAir.Plugins.BasePlugin import BasePlugin
 from WMCore.Credential.Proxy import Proxy
 from WMCore.DAOFactory import DAOFactory
@@ -114,7 +115,7 @@ class SimpleCondorPlugin(BasePlugin):
             self.unpacker = os.path.join(getWMBASE(),
                                          'WMCore/WMRuntime/Unpacker.py')
 
-        self.agent = getattr(config.Agent, 'agentName', 'WMAgent')
+        self.agent = encodeUnicodeToBytes(getattr(config.Agent, 'agentName', 'WMAgent'))
         self.sandbox = None
 
         self.scriptFile = config.JobSubmitter.submitScript
