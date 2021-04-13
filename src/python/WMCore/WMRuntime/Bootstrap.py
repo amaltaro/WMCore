@@ -218,8 +218,8 @@ def createInitialReport(job, reportName):
         siteCfg = loadSiteLocalConfig()
     except SiteConfigError:
         # For now, assume that we did this on purpose
-        msg = "Couldn't find SiteConfig"
-        logging.error(msg)
+        msg = "Could not load or find the SiteConfig"
+        logging.exception(msg)
         # TODO: Make less goatballs for testing purposes
         return
 
@@ -277,8 +277,8 @@ def createErrorReport(exitCode, errorType, errorDetails=None,
         siteCfg = loadSiteLocalConfig()
     except SiteConfigError:
         # For now, assume that we did this on purpose
-        msg = "Couldn't find SiteConfig"
-        logging.error(msg)
+        msg = "Could not load or find the SiteConfig"
+        logging.exception(msg)
         # TODO: Make this not suck goatballs when you are just running tests
         return
     report = Report.Report()
