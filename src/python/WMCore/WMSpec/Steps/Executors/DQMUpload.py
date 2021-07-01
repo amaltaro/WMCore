@@ -19,6 +19,7 @@ from gzip import GzipFile
 from hashlib import md5
 from mimetypes import guess_type
 
+from Utils.Utilities import encodeUnicodeToBytes
 from WMCore.FwkJobReport.Report import Report
 from WMCore.Services.HTTPS.HTTPSAuthHandler import HTTPSAuthHandler
 from WMCore.WMSpec.Steps.Executor import Executor
@@ -65,7 +66,7 @@ class DQMUpload(Executor):
                 # Let it go, it wasn't in the sandbox. Then it must be
                 # somewhere else
                 del ex
-
+        logging.info("AMR self.step.upload.proxy type: %s and data: %s", type(self.step.upload.proxy), self.step.upload.proxy)
         # Search through steps for analysis files
         for step in self.stepSpace.taskSpace.stepSpaces():
             if step == self.stepName:
@@ -93,6 +94,8 @@ class DQMUpload(Executor):
             for analysisFile in analysisFiles:
                 # only deal with DQM files
                 if analysisFile.FileClass == "DQM":
+                    logging.info("AMR analysisFile type: %s and data: %s", type(analysisFile), analysisFile)
+                    logging.info("AMR analysisFile.fileName type: %s and data: %s", type(analysisFile.fileName), analysisFile.fileName)
                     # uploading file to the server
                     self.httpPost(os.path.join(stepLocation,
                                                os.path.basename(analysisFile.fileName)))
@@ -195,9 +198,11 @@ class DQMUpload(Executor):
         (body, crlf) = ('', '\r\n')
         for (key, value) in viewitems(args):
             payload = str(value)
+            logging.info("AMR payload type: %s and data: %s", type(payload), payload)
             body += '--' + boundary + crlf
             body += ('Content-Disposition: form-data; name="%s"' % key) + crlf
             body += crlf + payload + crlf
+        logging.info("AMR partial body type: %s and data: %s", type(body), body)
         for (key, filename) in viewitems(files):
             body += '--' + boundary + crlf
             body += ('Content-Disposition: form-data; name="%s"; filename="%s"'
@@ -217,6 +222,8 @@ class DQMUpload(Executor):
         of the CGI script.
         """
         (contentType, body) = self.encode(args, files)
+        logging.info("AMR contentType type: %s and data: %s", type(contentType), contentType)
+        logging.info("AMR body type: %s and initial data: %s", type(body), body[:50])
         request.add_header('Content-Type', contentType)
         request.add_header('Content-Length', str(len(body)))
         request.add_data(body)
@@ -233,10 +240,11 @@ class DQMUpload(Executor):
         uploadProxy = self.step.upload.proxy or os.environ.get('X509_USER_PROXY', None)
         logging.info("Using proxy file: %s", uploadProxy)
         logging.info("Using CA certificate path: %s", os.environ.get('X509_CERT_DIR'))
+        logging.info("AMR uploadProxy type: %s and data: %s", type(uploadProxy), uploadProxy)
 
         msg = "HTTP POST upload arguments:\n"
         for arg in args:
-            msg += "  ==> %s: %s\n" % (arg, args[arg])
+            msg += "  ==> %s (%s): %s\n" % (arg, type(args[arg]), args[arg])
         logging.info(msg)
 
         handler = HTTPSAuthHandler(key=uploadProxy, cert=uploadProxy)
@@ -244,10 +252,12 @@ class DQMUpload(Executor):
         opener.add_handler(handler)
 
         # setup the request object
-        datareq = urllib2.Request(url + '/data/put')
+        logging.info("AMR url type: %s and data: %s", type(url), url)
+        datareq = urllib2.Request(encodeUnicodeToBytes(url) + '/data/put')
         datareq.add_header('Accept-encoding', 'gzip')
         datareq.add_header('User-agent', ident)
         self.marshall(args, {'file': filename}, datareq)
+        logging.info("AMR datareq type: %s and data: %s and dir: %s", type(datareq), datareq, dir(datareq))
 
         if 'https://' in url:
             result = opener.open(datareq)
