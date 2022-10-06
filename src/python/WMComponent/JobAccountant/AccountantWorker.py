@@ -420,6 +420,11 @@ class AccountantWorker(WMConnectionBase):
         if jobType == "Merge" and fwjrFile["module_label"] != "logArchive":
             setattr(fwjrFile["fileRef"], 'merged', True)
             fwjrFile["merged"] = True
+        # TODO FIXME AMR debugging
+        if jobType == "LogCollect":
+            logging.info("AMR fwjrFile %s", fwjrFile)
+            import sys
+            sys.exit(1)
 
         wmbsFile = self.createFileFromDataStructsFile(fname=fwjrFile, jobID=jobID)
 
@@ -608,7 +613,8 @@ class AccountantWorker(WMConnectionBase):
             parentWMBSJobIDs = []
             for row in resultRows:
                 parentWMBSJobIDs.append({"jobid": row["value"]})
-            # update Job doc in wmstats
+            logging.info(f"Updating LogCollect job parent mapping for {len(parentWMBSJobIDs)} jobs")
+            # update job information in WMBS
             results = self.getJobInfoByID.execute(parentWMBSJobIDs)
             parentJobNames = []
 
