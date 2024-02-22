@@ -28,7 +28,7 @@ class ActiveRequestJobInfo(RESTEntity):
     def get(self):
         # This assumes DataCahe is periodically updated.
         # If data is not updated, need to check, dataCacheUpdate log
-        return rows([DataCache.getlatestJobData()])
+        return rows(DataCache.getlatestJobData().values())
 
 
 class FilteredActiveRequestJobInfo(RESTEntity):
