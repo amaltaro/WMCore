@@ -732,6 +732,9 @@ class MSUnmerged(MSCore):
 
         # Now apply the filters back to the set in rse['dirs']['toDelete']
         rse['dirs']['toDelete'] = set(rse['files']['toDelete'].keys())
+        import json
+        with open("/data/srv/current/vienna.json", "w") as jo:
+            json.dump(list(rse['dirs']['toDelete']), jo, indent=2, sort_keys=True)
 
         # Update the counters:
         rse['counters']['dirsToDelete'] = len(rse['files']['toDelete'])
@@ -945,4 +948,4 @@ class MSUnmerged(MSCore):
             msg = "Unknown exception while trying to fetch the initial list of RSEs to work on. Err: %s"
             self.logger.exception(msg, str(ex))
             rseList = []
-        return rseList
+        return ["T2_AT_Vienna"]  # rseList
