@@ -3,9 +3,7 @@
 """
 AgentStatusWatcher test
 """
-
-from __future__ import print_function, division
-
+import os
 import threading
 import unittest
 from WMQuality.TestInitCouchApp import TestInitCouchApp as TestInit
@@ -82,6 +80,12 @@ class AgentStatusWatcher_t(unittest.TestCase):
         """
         threading.currentThread()
         config = self.getConfig()
+        # change between RPM and Docker based tests
+        print(f"WMA_DEPLOY_DIR: {os.environ.get('WMA_DEPLOY_DIR')}")
+        print(f"WMCORE_ROOT: {os.environ.get('WMCORE_ROOT')}")
+        if not os.environ.get("WMA_DEPLOY_DIR"):
+            os.environ["WMA_DEPLOY_DIR"] = os.path.join(os.environ.get("WMCORE_ROOT"), "install")
+
         watcher = AgentStatusPoller(config)
         # Note:
         # Should call: watcher.setup() and watcher.algorithm()
@@ -94,7 +98,7 @@ class AgentStatusWatcher_t(unittest.TestCase):
         # Check service certificate and proxy lifetimes
         watcher.checkCredLifetime(agInfo, "proxy")
         watcher.checkCredLifetime(agInfo, "certificate")
-        print("Agent Info:\n%s" % (agInfo))
+        print(f"Agent Info:\n{agInfo}")
 
 if __name__ == '__main__':
     unittest.main()
