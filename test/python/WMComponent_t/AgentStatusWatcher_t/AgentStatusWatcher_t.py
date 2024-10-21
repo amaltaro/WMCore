@@ -83,8 +83,23 @@ class AgentStatusWatcher_t(unittest.TestCase):
         # change between RPM and Docker based tests
         print(f"WMA_DEPLOY_DIR: {os.environ.get('WMA_DEPLOY_DIR')}")
         print(f"WMCORE_ROOT: {os.environ.get('WMCORE_ROOT')}")
-        if not os.environ.get("WMA_DEPLOY_DIR"):
-            os.environ["WMA_DEPLOY_DIR"] = os.path.join(os.environ.get("WMCORE_ROOT"), "install")
+        if os.environ.get('WMA_DEPLOY_DIR'):
+            ## check for Alma9 docker
+            print(f"Found WMA_DEPLOY_DIR set to: {os.environ.get('WMA_DEPLOY_DIR')}")
+        elif os.environ.get('TEST_DIR'):
+            # check for CC7 docker
+            print(f"Found TEST_DIR set to: {os.environ.get('TEST_DIR')}")
+            os.environ["WMA_DEPLOY_DIR"] = os.path.join(os.environ.get('TEST_DIR'), "WMCore")
+        elif os.environ.get('WMCORE_ROOT'):
+            # check for CC7 RPM
+            print(f"Found WMCORE_ROOT set to: {os.environ.get('WMCORE_ROOT')}")
+            os.environ["WMA_DEPLOY_DIR"] = os.path.join(os.environ.get('WMCORE_ROOT'), "install")
+        else:
+            # last fallback path
+            fallbackDir = "/home/cmsbld/WMCore/"
+            print("Did not find any of the expected env vars: WMA_DEPLOY_DIR, TEST_DIR, WMCORE_ROOT")
+            print(f"Setting WMA_DEPLOY_DIR environment variable to: {fallbackDir}")
+            os.environ["WMA_DEPLOY_DIR"] = os.path.join(fallbackDir, "install")
 
         watcher = AgentStatusPoller(config)
         # Note:
