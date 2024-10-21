@@ -93,7 +93,8 @@ class AgentStatusWatcher_t(unittest.TestCase):
         elif os.environ.get('WMCORE_ROOT'):
             # check for CC7 RPM
             print(f"Found WMCORE_ROOT set to: {os.environ.get('WMCORE_ROOT')}")
-            os.environ["WMA_DEPLOY_DIR"] = os.path.join(os.environ.get('WMCORE_ROOT'), "install")
+            #os.environ["WMA_DEPLOY_DIR"] = os.path.join(os.environ.get('WMCORE_ROOT'), "install")
+            os.environ["WMA_DEPLOY_DIR"] = os.environ.get('WMCORE_ROOT')
         else:
             # last fallback path
             fallbackDir = "/home/cmsbld/WMCore/"
